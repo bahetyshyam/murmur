@@ -26,6 +26,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Pin to Xcode 15.4 / Swift 5.10. Newer toolchains (Xcode 16 / Swift 6)
+      # promote a number of MainActor-isolation warnings to hard errors, and
+      # the current Swift sources haven't been audited for strict concurrency
+      # yet. Revisit this pin when the code is annotated.
+      - name: Select Xcode 15.4
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
       - name: Show toolchain versions
         run: |
           sw_vers
