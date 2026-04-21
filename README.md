@@ -21,16 +21,37 @@
 
 Double-click the zip. You'll get `Murmur.app`. Drag it into your **Applications** folder.
 
-### 3. First launch — **right-click → Open**
+### 3. First launch — get past the "could not verify" warning
 
-> This step matters. Don't double-click the first time.
+The first time you open Murmur, macOS will refuse and say *"Apple could not verify 'Murmur' is free of malware…"* with only **Move to Trash** / **Done** buttons. This is expected. Pick the steps that match your macOS version:
 
-In Applications, **right-click `Murmur.app` → Open**. macOS will show a warning ("Apple could not verify…") — click **Open** anyway.
+#### macOS 15 Sequoia (most users today)
+
+1. Double-click `Murmur.app`. You'll get the "could not verify" dialog — click **Done**.
+2. Open **System Settings → Privacy & Security**.
+3. Scroll to the bottom. You'll see a banner: *"Murmur" was blocked to protect your Mac.* Click **Open Anyway**.
+4. Re-launch Murmur. This time the dialog has an **Open** button — click it.
+
+> The "Open Anyway" banner only appears for about an hour after you were blocked, so do this right after step 1.
+
+#### macOS 14 Sonoma and earlier
+
+In Applications, **right-click `Murmur.app` → Open**. The warning will show an **Open** button — click it.
 
 <details>
-<summary>Why this extra step?</summary>
+<summary>Prefer the Terminal? One command, works on every macOS version.</summary>
 
-Murmur is a free personal project and isn't signed with a paid Apple Developer certificate ($99/yr). Right-click → Open tells macOS you trust it. You only have to do this **once** per Mac — after that, double-click works like any other app.
+```bash
+xattr -dr com.apple.quarantine /Applications/Murmur.app
+```
+
+This removes the "downloaded from the internet" flag that triggers Gatekeeper. After running it, `Murmur.app` opens normally with a double-click. It's the same trick Homebrew uses for ad-hoc signed casks.
+</details>
+
+<details>
+<summary>Why is any of this necessary?</summary>
+
+Murmur is a free personal project and isn't signed with a paid Apple Developer certificate ($99/yr) or notarized by Apple. You're telling macOS *"yes, I trust this developer"* — once. After you've opened it successfully, double-click works like any other app on that Mac.
 </details>
 
 ### 4. Grant permissions when prompted
