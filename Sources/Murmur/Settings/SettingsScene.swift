@@ -18,6 +18,7 @@ extension Notification.Name {
 /// `murmur/project/settings-window.jsx`: 520×400, 130pt right-aligned label
 /// column, control + plain-language caption stacked on the right, thin
 /// dividers aligned with the control column.
+@MainActor
 struct SettingsView: View {
     /// Which preferences tab is visible. Exposed so other parts of the app
     /// (e.g. the "add your API key" launch prompt) can route the user

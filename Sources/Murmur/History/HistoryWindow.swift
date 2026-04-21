@@ -9,6 +9,7 @@ import SwiftUI
 /// * Per-row Copy button (clipboard).
 /// * Error rows rendered with a red leading strip.
 /// * Shows paste state (✓ pasted vs ⎘ copy-only vs ⚠ error).
+@MainActor
 struct HistoryView: View {
     let store: HistoryStore
     @State private var items: [Transcript] = []
