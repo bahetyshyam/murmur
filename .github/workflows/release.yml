@@ -1,10 +1,11 @@
 name: Build & Release
 
 # Triggers:
-#   - push a tag like `v0.1.0` → builds Murmur.app, zips it, and publishes a
-#     GitHub Release with the zip attached. This is the URL linked from the
-#     README's "Download" section (releases/latest).
-#   - Manual run from the Actions tab → builds and uploads the zip as a
+#   - push a tag like `v0.1.0` → builds Murmur.app, packages it as a
+#     signed .dmg, and publishes a GitHub Release with the dmg attached.
+#     This is the URL linked from the README's "Download" section
+#     (releases/latest).
+#   - Manual run from the Actions tab → builds and uploads the dmg as a
 #     workflow artifact (useful for testing the pipeline without cutting a
 #     real release).
 
@@ -102,7 +103,14 @@ jobs:
 
           rm -f "$CERT_PATH"
 
-      - name: Build release (.app + .zip)
+      # `create-dmg` is a Homebrew formula that wraps hdiutil with an
+      # AppleScript layout (Applications drag target + window position).
+      # Pre-installed on most runner images, but `brew install` is a
+      # no-op in that case, so this is cheap and idempotent.
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Build release (.app + .dmg)
         run: ./scripts/build_release.sh
 
       - name: List dist/
@@ -112,14 +120,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Murmur-macos
-          path: dist/Murmur-*.zip
+          path: dist/Murmur-*.dmg
           if-no-files-found: error
 
-      - name: Attach zip to GitHub Release
+      - name: Attach dmg to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Murmur-*.zip
+          files: dist/Murmur-*.dmg
           generate_release_notes: true
           draft: false
           prerelease: false
