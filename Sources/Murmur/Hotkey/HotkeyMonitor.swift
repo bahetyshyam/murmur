@@ -19,14 +19,19 @@ import OSLog
 ///     event. The keystroke never reaches the focused app. Matches
 ///     SuperWhisper / Raycast behavior.
 ///
-/// Chord path (non-modifier key + modifiers): consumed.
-/// Modifier-only path (bare ⌥ / ⌘ / ⌃ / ⇧): *not* consumed — modifiers
-/// alone don't produce text and users often combine them with other
-/// shortcuts, so swallowing them would break normal typing.
+/// Only modifier-only hotkeys (bare ⌥ / ⌘ / ⌃ / ⇧) are supported — never
+/// consumed, since users combine modifiers with other shortcuts for normal
+/// typing. Chord hotkeys (⌥` etc.) are intentionally not offered: they fire
+/// `.keyDown` events, which macOS 26 Tahoe silently drops for session taps
+/// in non-notarized apps. Modifier keys fire `.flagsChanged`, which is
+/// delivered fine. Notarized apps (freeflow, SuperWhisper) can use chord
+/// hotkeys because the notarization signature class unlocks full keyDown
+/// delivery; we ship self-signed, so we restrict to modifier-only.
 ///
 /// Accessibility permission is required for CGEventTap. We gate install
 /// on the AX check and poll in the background until the user grants it —
-/// no relaunch required.
+/// no relaunch required. No Input Monitoring grant needed (session taps
+/// don't require it).
 @MainActor
 final class HotkeyMonitor {
     /// Called when the user presses the configured hotkey. In tap-to-toggle
@@ -60,15 +65,16 @@ final class HotkeyMonitor {
         self.config = config
     }
 
-    /// Starts listening. Prompts for Accessibility permission if not yet
-    /// granted. If denied, begins a background poll that installs the
-    /// tap the moment the user grants access — no relaunch required.
-    /// Returns whether the tap is currently live.
+    /// Starts listening. Does NOT surface the Accessibility TCC prompt —
+    /// that's the onboarding wizard's job, fired only when the user
+    /// clicks the explicit "Open Accessibility Settings" button. Here we
+    /// attempt a silent install; if AX isn't yet trusted, we begin a
+    /// background poll that installs the tap the moment the user grants
+    /// access (no relaunch required). Returns whether the tap is currently
+    /// live.
     @discardableResult
     func start() -> Bool {
         guard eventTap == nil else { return true }
-
-        _ = requestAccessibility(prompt: true)
 
         if installEventTap() {
             return true
@@ -108,7 +114,7 @@ final class HotkeyMonitor {
     @discardableResult
     private func installEventTap() -> Bool {
         guard isAccessibilityTrusted() else {
-            log.warning("TCC gate not open — Accessibility=false")
+            log.warning("Accessibility TCC gate not open — tap install deferred")
             return false
         }
 

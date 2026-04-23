@@ -14,11 +14,14 @@ import Observation
 final class AppConfig {
     // MARK: Defaults
 
-    /// Default hotkey: ⌥` (Option+Backtick). Keycode 50 is the `/~ key on
-    /// US ANSI; `NSEvent.ModifierFlags.option.rawValue` == 524288. Chosen
-    /// to avoid SuperWhisper (⌥Space), Spotlight (⌘Space), and macOS
-    /// input-source / emoji picker chords.
-    static let defaultHotkey = "chord:50:524288"
+    /// Default hotkey: Right Option (`alt_r`). Modifier-only keys fire
+    /// `.flagsChanged` events, which session-level CGEventTaps deliver
+    /// reliably even for non-notarized (self-signed) apps on macOS 26 —
+    /// unlike chord hotkeys (⌥`, ⌘⇧Space, …) whose `.keyDown` events get
+    /// dropped. Right Option is also what freeflow / SuperWhisper ship
+    /// with: single-tap, thumb-accessible, no conflict with the Fn key
+    /// emoji-picker default.
+    static let defaultHotkey = "alt_r"
     static let defaultModel = "gpt-4o-transcribe"
 
     // MARK: Stored properties (observed by SwiftUI + persisted on didSet)
@@ -41,7 +44,18 @@ final class AppConfig {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        self.hotkey = defaults.string(forKey: Keys.hotkey) ?? Self.defaultHotkey
+        // Migration: older builds defaulted to a chord (`chord:50:524288` = ⌥`),
+        // but chord hotkeys need notarization to work reliably on macOS 26. If
+        // the persisted value is a chord form, silently promote to the new
+        // modifier-only default so the user's hotkey keeps working after the
+        // upgrade without them having to revisit Settings.
+        let persistedHotkey = defaults.string(forKey: Keys.hotkey)
+        if let raw = persistedHotkey, raw.lowercased().hasPrefix("chord:") {
+            self.hotkey = Self.defaultHotkey
+            defaults.set(Self.defaultHotkey, forKey: Keys.hotkey)
+        } else {
+            self.hotkey = persistedHotkey ?? Self.defaultHotkey
+        }
         self.model = defaults.string(forKey: Keys.model) ?? Self.defaultModel
         self.biasingPrompt = defaults.string(forKey: Keys.biasingPrompt) ?? ""
         self.language = defaults.string(forKey: Keys.language) ?? ""

@@ -64,6 +64,9 @@ final class AppModel {
                 recordStartedAt = CFAbsoluteTimeGetCurrent()
                 state = .recording
                 if config.chimesEnabled { chimes.playStart() }
+            } catch RecorderError.microphoneDenied {
+                log.error("recorder.start failed: microphone denied")
+                enterError("Microphone access denied — see menu")
             } catch {
                 log.error("recorder.start failed: \(String(describing: error), privacy: .public)")
                 enterError("Recording failed to start")
@@ -208,5 +211,7 @@ final class AppModel {
 
     func showHistoryWindow() { windows?.showHistory() }
     func showSettingsWindow() { windows?.showSettings() }
-    func showPermissionsHelp() { Onboarding.showPermissionsHelp() }
+    func showPermissionsHelp() {
+        Onboarding.showPermissionsHelp(config: config, windows: windows)
+    }
 }

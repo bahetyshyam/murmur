@@ -10,8 +10,14 @@ final class MenuBarController {
     private var stateItem: NSMenuItem?  // the "Idle / Recording…" row
     private var permissionItem: NSMenuItem?        // status row (hidden when OK)
     private var grantItem: NSMenuItem?             // "Grant Accessibility Access…" deep-link
+    private var micPermissionItem: NSMenuItem?     // "Microphone access required" status row
+    private var micGrantItem: NSMenuItem?          // "Grant Microphone Access…" deep-link
     private var lastState: AppModel.State = .idle
     private var hotkeyInstalled = true
+    // Default to true so the menubar doesn't flash a false "mic missing"
+    // warning during the brief window between launch and the first
+    // MicPermissionMonitor.start() callback.
+    private var micGranted = true
 
     init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -34,13 +40,26 @@ final class MenuBarController {
         refreshIconAndLabel()
     }
 
+    /// Called by AppDelegate when MicPermissionMonitor reports a status
+    /// change. `granted` is true only for `.authorized` — `.denied` and
+    /// `.restricted` both surface the warning row.
+    func apply(micGranted granted: Bool) {
+        micGranted = granted
+        micPermissionItem?.isHidden = granted
+        micGrantItem?.isHidden = granted
+        refreshIconAndLabel()
+    }
+
+    /// Precedence: Accessibility wins, because without it the hotkey tap
+    /// isn't installed at all (and fixing mic first wouldn't help the user
+    /// do anything). Only show the mic warning when AX is already fine.
     private func refreshIconAndLabel() {
         if !hotkeyInstalled {
-            // Surface the permission problem directly in the menubar icon
-            // and the status row — otherwise a silent dead hotkey looks
-            // like a bug.
             configureButton(glyph: .error)
             stateItem?.title = "Hotkey disabled — grant Accessibility"
+        } else if !micGranted {
+            configureButton(glyph: .error)
+            stateItem?.title = "Microphone access needed"
         } else {
             configureButton(glyph: MurmurIcon.glyphState(for: lastState))
             stateItem?.title = Self.stateLabel(for: lastState)
@@ -82,12 +101,11 @@ final class MenuBarController {
         stateItem = state
         menu.addItem(state)
 
-        // Permission-state row + direct deep-link actions. All three are
-        // hidden while the tap is live; shown the moment install fails.
-        // We can't know which TCC bucket is the one blocking us (both
-        // Accessibility and Input Monitoring are required), so we surface
-        // both jump-to-pane items and let the user toggle whichever is
-        // off.
+        // Permission-state row + direct deep-link action. Both are hidden
+        // while the tap is live; shown the moment install fails. The
+        // session-level CGEventTap only needs Accessibility — no Input
+        // Monitoring grant required (we restrict hotkeys to modifier-only
+        // so `.flagsChanged` is all we consume).
         let perm = NSMenuItem(title: "Hotkey disabled — grant Accessibility", action: nil, keyEquivalent: "")
         perm.isEnabled = false
         perm.isHidden = true
@@ -98,6 +116,23 @@ final class MenuBarController {
         grant.isHidden = true
         grantItem = grant
         menu.addItem(grant)
+
+        // Parallel mic rows — only surface after AX is granted (see the
+        // precedence rule in refreshIconAndLabel). By the time the user
+        // reaches this row, MicPermissionMonitor.start() has already
+        // called AVCaptureDevice.requestAccess, so Murmur is registered
+        // with TCC and the deep-linked Privacy → Microphone pane will
+        // actually list it.
+        let micPerm = NSMenuItem(title: "Microphone access required", action: nil, keyEquivalent: "")
+        micPerm.isEnabled = false
+        micPerm.isHidden = true
+        micPermissionItem = micPerm
+        menu.addItem(micPerm)
+
+        let micGrant = actionItem("Grant Microphone Access…", #selector(openMicrophonePane(_:)))
+        micGrant.isHidden = true
+        micGrantItem = micGrant
+        menu.addItem(micGrant)
 
         menu.addItem(.separator())
 
@@ -128,6 +163,12 @@ final class MenuBarController {
 
     @objc private func openAccessibilityPane(_ sender: Any?) {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    @objc private func openMicrophonePane(_ sender: Any?) {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
             NSWorkspace.shared.open(url)
         }
     }

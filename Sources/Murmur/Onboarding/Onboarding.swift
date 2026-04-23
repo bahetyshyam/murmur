@@ -1,63 +1,86 @@
 import AppKit
 import Foundation
 
-/// Lightweight first-run flow: checks a UserDefaults flag and, on first
-/// launch, pops an NSAlert with deep-links to each privacy pane the app
-/// needs (Microphone / Accessibility / Input Monitoring).
+/// Entry points for first-run onboarding + the menubar "Permissions Help"
+/// action. Both present the same SwiftUI wizard (`OnboardingWizardView`).
 ///
-/// Kept intentionally simple — a full SwiftUI onboarding wizard is overkill
-/// for a personal tool. The alert + deep-link buttons cover the ground
-/// the user actually needs to traverse.
+/// Keeps a single persistent NSWindow reference so repeat invocations
+/// don't stack windows, and so closing the wizard during active use
+/// (e.g. user hits ⌘W) doesn't dealloc model state mid-flight.
 @MainActor
 enum Onboarding {
     private static let seenKey = "onboardingSeen.v1"
+    private static var hostedWindow: NSWindow?
 
-    static func runIfFirstLaunch() {
+    /// Called once during bootstrap. Opens the wizard on true first launch
+    /// only; subsequent launches no-op. Non-blocking — the rest of app
+    /// bootstrap continues while the wizard is on screen so permissions
+    /// granted through the wizard flow straight into the already-running
+    /// HotkeyMonitor / MicPermissionMonitor.
+    static func runIfFirstLaunch(config: AppConfig, windows: WindowManager?) {
         let defaults = UserDefaults.standard
         guard !defaults.bool(forKey: seenKey) else { return }
-        show(firstRun: true)
-        defaults.set(true, forKey: seenKey)
+        present(config: config, windows: windows, markSeenOnFinish: true)
     }
 
     /// Re-runnable from the menubar "Permissions Help" item.
-    static func showPermissionsHelp() {
-        show(firstRun: false)
+    static func showPermissionsHelp(config: AppConfig, windows: WindowManager?) {
+        present(config: config, windows: windows, markSeenOnFinish: false)
     }
 
-    private static func show(firstRun: Bool) {
-        let alert = NSAlert()
-        alert.messageText = firstRun ? "Welcome to Murmur" : "Permissions"
-        alert.informativeText = """
-        Murmur needs two macOS permissions to work:
+    // MARK: -
 
-        • Microphone — to record audio while you hold the hotkey.
-        • Accessibility — both to detect your push-to-talk key globally \
-        and to synthesize a ⌘V keystroke for paste.
-
-        You'll be prompted as features are used. You can also grant them \
-        manually in System Settings → Privacy & Security. Use the buttons \
-        below to jump directly to each pane.
-        """
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "Open Microphone")
-        alert.addButton(withTitle: "Open Accessibility")
-        alert.addButton(withTitle: "Done")
-
-        let response = alert.runModal()
-        switch response {
-        case .alertFirstButtonReturn:
-            openPane("Privacy_Microphone")
-            show(firstRun: false) // re-show so user can visit both panes
-        case .alertSecondButtonReturn:
-            openPane("Privacy_Accessibility")
-            show(firstRun: false)
-        default:
-            break
+    private static func present(
+        config: AppConfig,
+        windows: WindowManager?,
+        markSeenOnFinish: Bool
+    ) {
+        if let window = hostedWindow {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
         }
-    }
 
-    private static func openPane(_ name: String) {
-        let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(name)")!
-        NSWorkspace.shared.open(url)
+        let model = OnboardingModel(config: config)
+        let window = OnboardingWindow.make(model: model) {
+            if markSeenOnFinish {
+                UserDefaults.standard.set(true, forKey: Self.seenKey)
+            }
+            hostedWindow?.close()
+            // willClose observer handles the rest (activation policy +
+            // nil'ing hostedWindow), so both the Finish path and red-X
+            // path converge on the same teardown.
+        }
+        hostedWindow = window
+
+        // Switch to a regular app while the wizard is up so macOS treats
+        // Murmur as a focus-eligible app after TCC / System Settings
+        // round-trips. Without this, a menubar-only (.accessory) app
+        // vanishes from ⌘Tab + the dock the moment the system dialog
+        // dismisses — and the wizard becomes impossible to refocus
+        // without Mission Control. Mirrors freeflow's approach.
+        NSApp.setActivationPolicy(.regular)
+
+        // Observe willClose so the red-X and ⌘W paths restore .accessory
+        // identically to the Finish path. Captured `token` lets the
+        // observer remove itself — important because
+        // isReleasedWhenClosed=false means the NSWindow sticks around
+        // (hidden) and we don't want a dangling observer firing again on
+        // a re-opened window later.
+        var token: NSObjectProtocol?
+        token = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { _ in
+            if let token {
+                NotificationCenter.default.removeObserver(token)
+            }
+            NSApp.setActivationPolicy(.accessory)
+            hostedWindow = nil
+        }
+
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 }

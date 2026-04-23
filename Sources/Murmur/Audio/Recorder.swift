@@ -1,4 +1,5 @@
 import AVFAudio
+import AVFoundation
 import Foundation
 import OSLog
 
@@ -8,6 +9,9 @@ enum RecorderError: Error, CustomStringConvertible {
     case engineStartFailed(Error)
     case converterInitFailed
     case converterRunFailed(String)
+    /// Distinct from `.engineStartFailed` so the UI can surface a
+    /// targeted message and point the user at the menubar mic row.
+    case microphoneDenied
 
     var description: String {
         switch self {
@@ -16,6 +20,7 @@ enum RecorderError: Error, CustomStringConvertible {
         case .engineStartFailed(let e): return "Recorder.engineStartFailed(\(e))"
         case .converterInitFailed:      return "Recorder.converterInitFailed"
         case .converterRunFailed(let s): return "Recorder.converterRunFailed(\(s))"
+        case .microphoneDenied:         return "Recorder.microphoneDenied"
         }
     }
 }
@@ -126,6 +131,17 @@ final class Recorder {
             try engine.start()
         } catch {
             input.removeTap(onBus: 0)
+            // Distinguish "mic revoked in System Settings" from generic
+            // engine failures — the user action to fix each is totally
+            // different, so conflating them under one message was
+            // confusing. `.notDetermined` is impossible here in practice
+            // because `MicPermissionMonitor.start()` runs at launch and
+            // forces a decision, but treat it as "probably denied" to
+            // be safe.
+            let status = AVCaptureDevice.authorizationStatus(for: .audio)
+            if status == .denied || status == .restricted || status == .notDetermined {
+                throw RecorderError.microphoneDenied
+            }
             throw RecorderError.engineStartFailed(error)
         }
 

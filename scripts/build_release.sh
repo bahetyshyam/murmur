@@ -3,8 +3,35 @@
 #
 #   swift build -c release   → binary at .build/release/Murmur
 #   bundle                   → dist/Murmur.app/Contents/{MacOS,Resources,Info.plist}
-#   codesign --sign -        → ad-hoc signature (no $99/yr Apple Dev account)
+#   codesign --sign "Murmur Dev" --options runtime
+#                            → signed with a local self-signed identity +
+#                              hardened runtime. Unlike ad-hoc (`--sign -`),
+#                              the CDHash is derived from the identity's
+#                              key material and stays stable across
+#                              rebuilds, so macOS TCC grants (Accessibility,
+#                              Microphone, etc.) don't invalidate every
+#                              time we rebuild.
 #   zip                      → dist/Murmur-<version>.zip for sharing
+#
+# The `Murmur Dev` identity is a self-signed code-signing cert in the
+# login keychain. If `security find-identity -v -p codesigning | grep
+# "Murmur Dev"` returns nothing OR `codesign --sign "Murmur Dev" /tmp/foo`
+# fails, regenerate with:
+#
+#   TMP=$(mktemp -d) && (cd "$TMP" && \
+#     openssl req -x509 -nodes -newkey rsa:2048 -keyout key.pem -out cert.pem \
+#       -days 3650 -subj "/CN=Murmur Dev" \
+#       -addext "keyUsage = critical, digitalSignature" \
+#       -addext "extendedKeyUsage = critical, codeSigning" \
+#       -addext "basicConstraints = critical, CA:FALSE" && \
+#     openssl pkcs12 -export -inkey key.pem -in cert.pem -name "Murmur Dev" \
+#       -out id.p12 -passout pass:murmur -macalg SHA1 \
+#       -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -legacy && \
+#     security import id.p12 -k ~/Library/Keychains/login.keychain-db \
+#       -P murmur -T /usr/bin/codesign -T /usr/bin/security)
+#
+# (The `-macalg SHA1 ... -legacy` flags are for OpenSSL-3 / Apple Security
+# MAC compatibility — otherwise import fails with "MAC verification failed".)
 #
 # Usage: ./scripts/build_release.sh
 #
@@ -12,7 +39,7 @@
 #   open dist/Murmur.app            # run it
 #   share dist/Murmur-0.1.0.zip     # send to a friend
 #
-# Friends' first launch on their Mac (because we're ad-hoc signed, not
+# Friends' first launch on their Mac (because we're self-signed, not
 # notarized):  right-click Murmur.app → Open → Open in the dialog.
 # One time per Mac. Documented in README.
 
@@ -76,15 +103,26 @@ if [[ -d "$SPM_RESOURCES_BUNDLE" ]]; then
     cp -R "$SPM_RESOURCES_BUNDLE" "$APP_BUNDLE/Contents/Resources/"
 fi
 
-echo "==> codesign (ad-hoc)"
+CODESIGN_IDENTITY="${CODESIGN_IDENTITY:-Murmur Dev}"
+echo "==> codesign (--sign \"$CODESIGN_IDENTITY\", hardened runtime)"
+# Use `find-identity` WITHOUT `-v` (and without `-p codesigning`): both of
+# those filters hide self-signed identities that carry
+# `CSSMERR_TP_NOT_TRUSTED`, which is expected for a self-signed root — but
+# `codesign` itself is happy to use them regardless. The plain
+# `find-identity` listing includes every identity in every keychain.
+if ! security find-identity | grep -q "\"$CODESIGN_IDENTITY\""; then
+    echo "ERROR: codesigning identity \"$CODESIGN_IDENTITY\" not found in keychain." >&2
+    echo "       See the header comment in this script for how to regenerate it." >&2
+    exit 1
+fi
 if [[ -f "$ENTITLEMENTS" ]]; then
-    codesign --force --sign - \
+    codesign --force --sign "$CODESIGN_IDENTITY" \
         --options runtime \
         --entitlements "$ENTITLEMENTS" \
         --timestamp=none \
         "$APP_BUNDLE"
 else
-    codesign --force --sign - --options runtime --timestamp=none "$APP_BUNDLE"
+    codesign --force --sign "$CODESIGN_IDENTITY" --options runtime --timestamp=none "$APP_BUNDLE"
 fi
 
 echo "==> Verifying signature"

@@ -12,11 +12,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var model: AppModel?
     private var menuBar: MenuBarController?
     private var hotkey: HotkeyMonitor?
+    private var micPermission: MicPermissionMonitor?
     private var windows: WindowManager?
 
     /// Guards the "no API key → prompt" flow so we don't badger the user
     /// every time accessibility re-negotiates during a session.
     private var hasCheckedForApiKey = false
+
+    /// Guards the mic flow so repeat AX grant/revoke cycles don't restart
+    /// `MicPermissionMonitor` over and over. Set once on the first
+    /// `onInstalledChange(true)` (or the synchronous returning-user path).
+    private var hasStartedMicFlow = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainActor.assumeIsolated { bootstrap() }
@@ -56,20 +62,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.windows = windows
         menuBar.apply(state: model.state)
 
+        // First-run wizard. Non-blocking — bootstrap continues while the
+        // window is on screen so the HotkeyMonitor / MicPermissionMonitor
+        // pick up permissions the moment the user grants them inside the
+        // wizard. On subsequent launches this is a no-op.
+        Onboarding.runIfFirstLaunch(config: config, windows: windows)
+
         // Hotkey install. If Accessibility isn't yet granted, the user
         // gets a TCC prompt AND the monitor keeps polling in the
         // background — the moment the user grants access, the tap goes
-        // live with no relaunch.
+        // live with no relaunch. The mic-then-API-key chain is driven
+        // off `onInstalledChange`.
         let hotkey = HotkeyMonitor(config: config)
+        let micPermission = MicPermissionMonitor()
+
         hotkey.onToggle = { [weak model] in model?.hotkeyToggled() }
-        hotkey.onInstalledChange = { [weak self, weak menuBar] installed in
+        hotkey.onInstalledChange = { [weak self, weak menuBar, weak micPermission] installed in
             menuBar?.apply(hotkeyInstalled: installed)
-            if installed {
-                self?.promptForApiKeyIfMissing()
+            guard installed, let self else { return }
+            // First time AX flips on → kick off mic request. Subsequent
+            // AX toggles (user revokes + re-grants) don't re-prompt.
+            if !self.hasStartedMicFlow {
+                self.hasStartedMicFlow = true
+                micPermission?.start()
             }
         }
+
+        micPermission.onStatusChange = { [weak self, weak menuBar] status in
+            menuBar?.apply(micGranted: status == .authorized)
+            // After mic has a terminal state (authorized / denied /
+            // restricted) — which is "anything other than notDetermined"
+            // at this point because .start() has already requested — the
+            // API-key prompt is finally safe to show. Don't block on
+            // denial: the app still works, the menubar now warns the
+            // user and gives them a deep-link to fix it.
+            self?.promptForApiKeyIfMissing()
+        }
+
         let installed = hotkey.start()
         menuBar.apply(hotkeyInstalled: installed)
+
+        // Returning user path — AX already granted at launch, so
+        // `onInstalledChange` never fires. Kick off the mic flow directly
+        // through the same funnel; the mic callback will gate the
+        // API-key prompt the same way as the first-run path.
+        if installed && !hasStartedMicFlow {
+            hasStartedMicFlow = true
+            micPermission.start()
+        }
 
         // Settings posts `.murmurHotkeyChanged` after writing the new chord
         // to `config.hotkey`; we rebuild the monitor so the change takes
@@ -87,21 +127,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.menuBar = menuBar
         self.model = model
         self.hotkey = hotkey
+        self.micPermission = micPermission
         self.windows = windows
 
         logKeychainStatus()
-
-        // First-run onboarding (NSAlert with deep-links to Privacy panes).
-        // Fires once; after that the "Permissions Help" menu item re-opens
-        // the same alert.
-        Onboarding.runIfFirstLaunch()
-
-        // If Accessibility is already granted at launch (returning user),
-        // the hotkey monitor installs synchronously and `onInstalledChange`
-        // never fires. Check now so the API-key prompt still shows.
-        if installed {
-            promptForApiKeyIfMissing()
-        }
     }
 
     /// Shows an NSAlert pointing the user at the Settings → API Key tab

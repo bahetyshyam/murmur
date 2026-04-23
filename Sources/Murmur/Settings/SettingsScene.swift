@@ -110,34 +110,22 @@ struct SettingsView: View {
 
             SettingRow(
                 label: "Hotkey",
-                caption: "Tap to start recording, tap again to stop."
+                caption: "Tap a modifier key to start recording, tap again to stop."
             ) {
-                HotkeyCaptureControl(hotkey: $hotkey, onCommit: { new in
-                    config.hotkey = new
-                    NotificationCenter.default.post(
-                        name: .murmurHotkeyChanged, object: nil
-                    )
-                })
-            }
-
-            SettingRow(
-                label: "Or use a modifier key",
-                caption: "Single-tap a modifier to start / stop. Legacy option."
-            ) {
+                // Modifier-only hotkeys. Chord hotkeys (⌥`, ⌘⇧Space, …) are
+                // not offered because their .keyDown events get silently
+                // dropped by macOS 26 session taps in non-notarized apps —
+                // see HotkeyMonitor doc comment.
                 Picker("", selection: $hotkey) {
-                    Text("—").tag("")
                     Text("Right Option").tag("alt_r")
                     Text("Left Option").tag("alt_l")
                     Text("Right Command").tag("cmd_r")
                     Text("Right Control").tag("ctrl_r")
+                    Text("Right Shift").tag("shift_r")
                 }
                 .labelsHidden()
-                .frame(width: 160)
+                .frame(width: 180)
                 .onChange(of: hotkey) { _, new in
-                    // Only react if a legacy modifier was chosen; chord
-                    // writes go through HotkeyCaptureControl above.
-                    let legacy: Set<String> = ["alt_r", "alt_l", "cmd_r", "cmd_l", "ctrl_r", "ctrl_l"]
-                    guard legacy.contains(new) else { return }
                     config.hotkey = new
                     NotificationCenter.default.post(
                         name: .murmurHotkeyChanged, object: nil
@@ -568,165 +556,3 @@ private struct InlineDivider: View {
     }
 }
 
-// MARK: - Hotkey capture control
-
-/// A "record a chord" control for the Settings → General Hotkey row.
-///
-/// Shows the current hotkey as a pill (e.g. `⌥`). Clicking **Change…**
-/// installs a local NSEvent monitor that captures the next `keyDown` with
-/// at least one modifier, writes it back through `onCommit`, and rebuilds
-/// the hotkey display. Esc cancels without touching the saved value.
-///
-/// Non-obvious bits:
-/// * Uses `NSEvent.addLocalMonitorForEvents` (application-scoped) — the
-///   Settings window has to be key for this to fire, which it always is
-///   after the user clicks Change…, so that's fine.
-/// * Collision check warns about well-known OS shortcuts (Spotlight,
-///   emoji picker, common ⌘-key editing shortcuts). We still let the
-///   user save — they've been warned.
-/// * A bare `keyDown` with no modifiers is rejected with an inline hint,
-///   because saving something like `Space` alone would hijack typing
-///   everywhere.
-private struct HotkeyCaptureControl: View {
-    @Binding var hotkey: String
-    let onCommit: (String) -> Void
-
-    @State private var capturing = false
-    @State private var hint: String?
-    @State private var monitor: Any?
-    @State private var warning: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                chip
-                    .frame(minWidth: 90, alignment: .center)
-
-                Button(capturing ? "Press keys… (Esc to cancel)" : "Change…") {
-                    if capturing { cancelCapture() } else { beginCapture() }
-                }
-                .disabled(false)
-
-                Button("Reset") {
-                    cancelCapture()
-                    let key = HotkeyKey.defaultKey
-                    hotkey = key.serialized
-                    onCommit(key.serialized)
-                    warning = nil
-                    hint = nil
-                }
-            }
-            if let hint {
-                Text(hint)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.orange)
-            }
-            if let warning {
-                Text(warning)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.orange)
-            }
-        }
-        .onDisappear { cancelCapture() }
-    }
-
-    private var chip: some View {
-        Text(HotkeyKey.parse(hotkey).displayName)
-            .font(.system(size: 13, weight: .medium, design: .monospaced))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.primary.opacity(0.08))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5)
-            )
-    }
-
-    // MARK: - Capture flow
-
-    private func beginCapture() {
-        cancelCapture()        // idempotent
-        hint = nil
-        capturing = true
-
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
-            // Esc (keycode 53) — bail out without modifying anything.
-            if event.keyCode == 53 {
-                DispatchQueue.main.async { self.cancelCapture() }
-                return nil
-            }
-
-            let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            let cleaned = mods.subtracting(.capsLock)
-
-            // Require at least one real modifier so the user doesn't
-            // accidentally set `Space` and hijack typing.
-            if cleaned.isEmpty {
-                DispatchQueue.main.async {
-                    self.hint = "Hold at least one modifier (⌘ / ⌥ / ⌃ / ⇧)."
-                }
-                return nil
-            }
-
-            let kc = CGKeyCode(event.keyCode)
-            let key = HotkeyKey.chord(
-                keycode: kc,
-                modifiers: cleaned,
-                displayName: HotkeyKey.format(keycode: kc, modifiers: cleaned)
-            )
-            DispatchQueue.main.async {
-                self.commit(key: key)
-            }
-            return nil           // swallow so the chord doesn't type into the window
-        }
-    }
-
-    private func commit(key: HotkeyKey) {
-        let serialized = key.serialized
-        hotkey = serialized
-        onCommit(serialized)
-        warning = Self.collisionWarning(for: key)
-        cancelCapture()
-    }
-
-    private func cancelCapture() {
-        if let m = monitor {
-            NSEvent.removeMonitor(m)
-        }
-        monitor = nil
-        capturing = false
-        hint = nil
-    }
-
-    /// Short human warning if the chord matches a well-known macOS or app
-    /// shortcut. nil = no known collision.
-    private static func collisionWarning(for key: HotkeyKey) -> String? {
-        guard case .chord(let kc, let mods, _) = key else { return nil }
-        let m = mods.intersection(.deviceIndependentFlagsMask)
-
-        // Space (49)
-        if kc == 49 && m == .command { return "Collides with Spotlight — may not fire reliably." }
-        if kc == 49 && m == .option  { return "Collides with SuperWhisper (if installed)." }
-        if kc == 49 && m == .control { return "Collides with macOS input source switcher." }
-        if kc == 49 && m == [.control, .command] { return "Collides with the emoji picker." }
-        if kc == 49 && m == [.command, .shift] { return "Collides with input-source-reverse." }
-
-        // Common ⌘-letter editing shortcuts: Q/W/C/V/X/A/Z (keycodes 12, 13, 8, 9, 7, 0, 6)
-        if m == .command {
-            switch kc {
-            case 12: return "Collides with ⌘Q (Quit)."
-            case 13: return "Collides with ⌘W (Close window)."
-            case 8:  return "Collides with ⌘C (Copy)."
-            case 9:  return "Collides with ⌘V (Paste)."
-            case 7:  return "Collides with ⌘X (Cut)."
-            case 0:  return "Collides with ⌘A (Select all)."
-            case 6:  return "Collides with ⌘Z (Undo)."
-            default: break
-            }
-        }
-        return nil
-    }
-}

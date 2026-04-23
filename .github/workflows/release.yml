@@ -39,6 +39,69 @@ jobs:
           swift --version
           xcodebuild -version
 
+      # Import the self-signed `Murmur Dev` code-signing identity into a
+      # short-lived keychain so `build_release.sh` can codesign with the
+      # same identity used locally. Keeping the identity constant is what
+      # makes the app's CDHash stable across releases, so end users'
+      # TCC grants (Accessibility, Microphone) persist across updates
+      # instead of invalidating on every new build.
+      #
+      # Setup (one-time, done locally by the maintainer):
+      #   1. Keychain Access → find "Murmur Dev" certificate (it has a
+      #      disclosure triangle with a private key underneath) → right
+      #      click → Export "Murmur Dev"… → save as .p12 with a password.
+      #   2. Base64-encode:  base64 -i murmur-dev.p12 | pbcopy
+      #   3. Add two GitHub Actions secrets in repo Settings → Secrets:
+      #        MURMUR_DEV_CERT_P12_BASE64 = (paste the base64)
+      #        MURMUR_DEV_CERT_PASSWORD   = (the .p12 password)
+      - name: Import Murmur Dev codesigning identity
+        env:
+          CERT_P12_BASE64: ${{ secrets.MURMUR_DEV_CERT_P12_BASE64 }}
+          CERT_PASSWORD:   ${{ secrets.MURMUR_DEV_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${CERT_P12_BASE64:-}" || -z "${CERT_PASSWORD:-}" ]]; then
+            echo "ERROR: MURMUR_DEV_CERT_P12_BASE64 and MURMUR_DEV_CERT_PASSWORD secrets must be set." >&2
+            echo "       See comments in .github/workflows/release.yml for setup steps." >&2
+            exit 1
+          fi
+
+          CERT_PATH="$RUNNER_TEMP/murmur-dev.p12"
+          echo "$CERT_P12_BASE64" | base64 --decode > "$CERT_PATH"
+
+          # Short-lived keychain — runner is ephemeral, but we also
+          # auto-lock after 6h as a belt-and-suspenders cleanup.
+          KEYCHAIN_PATH="$RUNNER_TEMP/murmur-build.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" \
+            -P "$CERT_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+
+          # Required on modern macOS so codesign can access the private
+          # key non-interactively (no "allow access" GUI prompt).
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null
+
+          # Prepend to the user search list so `security find-identity`
+          # (called by build_release.sh) discovers the identity.
+          ORIGINAL_KEYCHAINS="$(security list-keychains -d user | sed 's/[\"\t ]//g' | tr '\n' ' ')"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $ORIGINAL_KEYCHAINS
+
+          # Sanity check. `find-identity` (no -v, no -p codesigning) is
+          # deliberate — self-signed identities are reported as
+          # CSSMERR_TP_NOT_TRUSTED which hides them from the "valid"
+          # filter, but `codesign` uses them fine anyway.
+          echo "==> Identities visible to codesign:"
+          security find-identity "$KEYCHAIN_PATH"
+
+          rm -f "$CERT_PATH"
+
       - name: Build release (.app + .zip)
         run: ./scripts/build_release.sh
 
