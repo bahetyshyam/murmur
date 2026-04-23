@@ -67,17 +67,26 @@ enum Onboarding {
         // isReleasedWhenClosed=false means the NSWindow sticks around
         // (hidden) and we don't want a dangling observer firing again on
         // a re-opened window later.
-        var token: NSObjectProtocol?
-        token = NotificationCenter.default.addObserver(
+        // Box the observer token so the closure can read it after it's
+        // assigned below, without capturing a mutable `var` (which Swift
+        // 5.10 strict concurrency rejects from a Sendable closure).
+        final class TokenBox: @unchecked Sendable { var token: NSObjectProtocol? }
+        let box = TokenBox()
+        box.token = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: window,
             queue: .main
         ) { _ in
-            if let token {
-                NotificationCenter.default.removeObserver(token)
+            // Queue is .main, so we're on the main thread — safe to
+            // assume main-actor isolation and touch NSApp + the
+            // static `hostedWindow` ref.
+            MainActor.assumeIsolated {
+                if let token = box.token {
+                    NotificationCenter.default.removeObserver(token)
+                }
+                NSApp.setActivationPolicy(.accessory)
+                hostedWindow = nil
             }
-            NSApp.setActivationPolicy(.accessory)
-            hostedWindow = nil
         }
 
         window.makeKeyAndOrderFront(nil)

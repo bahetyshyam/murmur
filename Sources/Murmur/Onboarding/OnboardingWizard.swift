@@ -317,6 +317,12 @@ final class OnboardingModel {
 
 // MARK: - View
 
+// `@MainActor` mirrors SettingsView / HistoryView — required under Swift
+// 5.10 strict concurrency because the view body touches `OnboardingModel`,
+// which is `@MainActor @Observable`. Without this annotation the view's
+// synthesized body is treated as non-isolated and every `model.<x>` read
+// becomes a hard error.
+@MainActor
 struct OnboardingWizardView: View {
     @Bindable var model: OnboardingModel
     let onFinish: () -> Void
