@@ -62,3 +62,30 @@ button:disabled { opacity: 0.4; cursor: default; }
   border-radius: 8px;
   background: rgba(128, 128, 128, 0.08);
 }
+
+input[type='password'] {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  background: rgba(128, 128, 128, 0.06);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 9px;
+  background: rgba(128, 128, 128, 0.08);
+}
+.card-title { font-size: 12px; font-weight: 600; }
+.ok { color: #3aa76d; font-weight: 500; margin-left: 6px; }
+
+.transcript {
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

@@ -3,6 +3,8 @@ import { join } from 'path'
 import { writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { TRAY_ICON_IDLE, TRAY_ICON_RECORDING } from './trayIcon'
+import { setKey, clearKey, hasKey, getKey } from './keyStore'
+import { transcribe, makeError, type TranscribeOutcome } from './transcribe'
 
 // Phase A — the menubar shell: a dock-less accessory app whose only persistent
 // presence is the tray. Mirrors the Swift app's MenuBarController + AppDelegate
@@ -112,6 +114,25 @@ ipcMain.handle('debug:save-wav', async (_e, wav: ArrayBuffer): Promise<string> =
   await writeFile(path, Buffer.from(wav))
   return path
 })
+
+// Phase C: API key storage (main-only) + transcription. The key never leaves
+// main — the renderer can set/clear/check status but never read it back.
+ipcMain.handle('key:set', (_e, plain: string) => setKey(plain))
+ipcMain.handle('key:clear', () => clearKey())
+ipcMain.handle('key:status', () => hasKey())
+
+ipcMain.handle(
+  'transcribe',
+  async (
+    _e,
+    wav: ArrayBuffer,
+    opts: { model: string; prompt?: string; language?: string },
+  ): Promise<TranscribeOutcome> => {
+    const apiKey = await getKey()
+    if (!apiKey) return { ok: false, error: makeError({ kind: 'noKey' }) }
+    return transcribe({ apiKey, wav, model: opts.model, prompt: opts.prompt, language: opts.language })
+  },
+)
 
 app.whenReady().then(() => {
   // Dock-less accessory app (Swift LSUIElement parity). NOTE: the tray only
