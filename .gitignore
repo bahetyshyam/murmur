@@ -34,6 +34,9 @@ VoiceToText.app/
 # Local design references (competitor screenshots, inspiration — not shipped)
 design-references/
 
+# Claude Code runtime artifacts
+.claude/scheduled_tasks.lock
+
 # Editors
 .vscode/
 .idea/

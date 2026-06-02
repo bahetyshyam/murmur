@@ -1,5 +1,4 @@
 import AppKit
-import Observation
 import SwiftUI
 
 /// Manages a floating status panel that shows "Listening…" or
@@ -16,20 +15,13 @@ import SwiftUI
 /// * Centered horizontally, positioned ~12 % from the top of the main
 ///   screen — far enough down to not overlap the menubar.
 ///
-/// While `.recording`, a small observable `LevelHolder` mirrors the mic
-/// RMS so the SwiftUI waveform inside `HUDView` can re-render without a
-/// `@State` timer. The Recorder pushes levels; we pull them out on hide.
+/// While `.recording`, a shared observable `MicLevelHolder` (DesignSystem)
+/// mirrors the mic RMS so the SwiftUI waveform inside `HUDView` can re-render
+/// without a `@State` timer. The Recorder pushes levels; we pull them out on hide.
 @MainActor
 final class HUDController {
-    /// Observable level mirror. Mutated on the main queue by Recorder's
-    /// throttled callback; SwiftUI re-renders the waveform each time.
-    @Observable
-    final class LevelHolder {
-        var level: Float = 0
-    }
-
     private let recorder: Recorder
-    let levelHolder = LevelHolder()
+    let levelHolder = MicLevelHolder()
 
     private var panel: NSPanel?
     private var hostingView: NSHostingView<HUDView>?

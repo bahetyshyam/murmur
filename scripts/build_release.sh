@@ -127,6 +127,28 @@ if [[ -d "$SPM_RESOURCES_BUNDLE" ]]; then
     cp -R "$SPM_RESOURCES_BUNDLE" "$APP_BUNDLE/Contents/Resources/"
 fi
 
+# --- Generate the app icon (.icns) ------------------------------------------
+# The Ink-dot app icon is drawn in pure code (DesignSystemCore.InkIcon). Render
+# an iconset via the DMGAssets tool and pack it with iconutil so Finder, the
+# Dock, Get Info, and the DMG show the real icon instead of a generic
+# placeholder. Info.plist declares CFBundleIconFile=Murmur. Must run BEFORE
+# codesign so the .icns is sealed into the bundle. Non-fatal on failure.
+echo "==> Generating app icon (.icns)"
+swift build -c release --product DMGAssets >/dev/null
+DMGASSETS_BIN="$(swift build -c release --show-bin-path)/DMGAssets"
+ICON_TMP="$(mktemp -d -t murmur-icon.XXXXXX)"
+ICONSET="$ICON_TMP/Murmur.iconset"
+mkdir -p "$ICONSET"
+# arg1 (bg png) is required by the tool but unused here; arg2 is the iconset dir.
+if "$DMGASSETS_BIN" "$ICON_TMP/_unused.png" "$ICONSET" \
+   && [[ -f "$ICONSET/icon_512x512.png" ]] \
+   && iconutil -c icns "$ICONSET" -o "$APP_BUNDLE/Contents/Resources/Murmur.icns"; then
+    echo "    Murmur.icns → Contents/Resources"
+else
+    echo "    (icon generation failed — bundling without .icns; Finder shows a placeholder)"
+fi
+rm -rf "$ICON_TMP"
+
 # --- Embed Sparkle.framework ------------------------------------------------
 # `swift build` links Sparkle but — unlike Xcode's "Embed Frameworks" phase —
 # does not copy the framework into the bundle. Locate the universal
@@ -201,23 +223,43 @@ rm -f "$DMG_PATH"
 # plus an /Applications symlink as a drag target. Using a dedicated dir
 # avoids hdiutil scooping up extra files from dist/.
 DMG_STAGING="$(mktemp -d -t murmur-dmg.XXXXXX)"
-trap 'rm -rf "$DMG_STAGING"' EXIT
+DMG_BG_DIR="$(mktemp -d -t murmur-dmgbg.XXXXXX)"
+trap 'rm -rf "$DMG_STAGING" "$DMG_BG_DIR"' EXIT
 cp -R "$APP_BUNDLE" "$DMG_STAGING/"
 
+# Render the on-brand DMG background (cream canvas, serif headline, gold arrow)
+# via the DMGAssets tool — it reuses DesignSystemCore's Ink palette / serif font
+# / arrow geometry without linking Sparkle. If the render fails (e.g. a headless
+# CI quirk), fall back to create-dmg's plain layout rather than breaking the build.
+echo "==> Rendering DMG background"
+swift build -c release --product DMGAssets >/dev/null
+DMG_BG="$DMG_BG_DIR/background.png"
+DMG_BG_ARGS=()
+if "$(swift build -c release --show-bin-path)/DMGAssets" "$DMG_BG" && [[ -f "$DMG_BG" ]]; then
+    DMG_BG_ARGS=(--background "$DMG_BG")
+else
+    echo "    (DMG background render failed — using create-dmg's plain layout)"
+fi
+
 if command -v create-dmg >/dev/null 2>&1; then
-    # `create-dmg` writes the AppleScript-positioned window layout so the
-    # user sees Murmur.app next to an Applications arrow on mount.
-    # `--skip-jenkins` silences a warning about CI hostnames; harmless
-    # either way.
+    # `create-dmg` runs an AppleScript that tells Finder to apply the window
+    # size, background image, and icon positions, persisting them as the
+    # volume's .DS_Store. Do NOT pass `--skip-jenkins`: despite the name, it
+    # *skips that AppleScript entirely*, producing a plain unstyled window with
+    # no background — see create-dmg issue #72. The AppleScript needs a GUI
+    # session + Finder automation (fine locally and on GitHub's macOS runners,
+    # which have a logged-in session).
+    # `${ARR[@]+"${ARR[@]}"}` is the bash-3.2-safe empty-array expansion.
+    # Window height bumped 360→380 to give the headline room above the icons.
     create-dmg \
         --volname "$APP_NAME $VERSION" \
         --window-pos 200 120 \
-        --window-size 540 360 \
+        --window-size 540 380 \
         --icon-size 100 \
         --icon "$APP_NAME.app" 140 170 \
         --hide-extension "$APP_NAME.app" \
         --app-drop-link 400 170 \
-        --skip-jenkins \
+        ${DMG_BG_ARGS[@]+"${DMG_BG_ARGS[@]}"} \
         "$DMG_PATH" \
         "$DMG_STAGING" >/dev/null
 else
@@ -253,7 +295,7 @@ if [[ -z "$GENERATE_APPCAST" ]]; then
 fi
 
 APPCAST_STAGING="$(mktemp -d -t murmur-appcast.XXXXXX)"
-trap 'rm -rf "$DMG_STAGING" "$APPCAST_STAGING" "${ED_KEY_FILE:-}"' EXIT
+trap 'rm -rf "$DMG_STAGING" "$DMG_BG_DIR" "$APPCAST_STAGING" "${ED_KEY_FILE:-}"' EXIT
 cp "$DMG_PATH" "$APPCAST_STAGING/"
 
 DOWNLOAD_PREFIX="https://github.com/bahetyshyam/murmur/releases/download/v${VERSION}/"

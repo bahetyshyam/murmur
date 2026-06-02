@@ -1,10 +1,12 @@
 import AppKit
+import OSLog
 
 /// Owns the NSStatusItem and its menu. Icon glyph is driven by
 /// `AppModel.state` via `apply(state:)`.
 @MainActor
 final class MenuBarController {
     private let statusItem: NSStatusItem
+    private let log = Logger(subsystem: "com.local.murmur", category: "menubar")
     weak var appModel: AppModel?
 
     private var stateItem: NSMenuItem?  // the "Idle / Recording…" row
@@ -21,8 +23,29 @@ final class MenuBarController {
 
     init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        // Defend against the item being hidden: `isVisible` can be persisted
+        // false if the user ever ⌘-drags the icon off the bar, and clamshell /
+        // display-reconfiguration races have been seen to leave fresh items
+        // hidden. Force it on, and don't allow drag-removal (which is what
+        // persists the hidden state in the first place).
+        statusItem.isVisible = true
+        statusItem.behavior = []
         configureButton(glyph: .idle)
         statusItem.menu = buildMenu()
+        log.info("status item created: button=\(self.statusItem.button != nil, privacy: .public), visible=\(self.statusItem.isVisible, privacy: .public), length=\(self.statusItem.length, privacy: .public)")
+
+        // If the button came back nil (rare, but it leaves a zero-width,
+        // invisible item), re-assert on the next runloop turn once AppKit has
+        // finished wiring the status bar.
+        if statusItem.button == nil {
+            log.error("statusItem.button was nil at init — scheduling re-configure")
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.statusItem.isVisible = true
+                self.configureButton(glyph: MurmurIcon.glyphState(for: self.lastState))
+                self.log.info("status item re-configured: button=\(self.statusItem.button != nil, privacy: .public)")
+            }
+        }
     }
 
     /// Called from AppModel.applyStateChange.
@@ -84,6 +107,13 @@ final class MenuBarController {
             // 18pt matches native SF Symbol menubar height; template image
             // lets macOS tint for light/dark/accented menubars.
             button.image = MurmurIcon.menubarGlyph(state, size: 18)
+        }
+        // Guaranteed-visible fallback: if the custom glyph ever fails to
+        // produce an image, fall back to a stock SF Symbol so the user always
+        // has something to click rather than an invisible, zero-width item.
+        if button.image == nil {
+            let symbol = state == .error ? "exclamationmark.triangle.fill" : "mic.circle"
+            button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Murmur")
         }
         button.toolTip = "Murmur"
     }

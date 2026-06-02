@@ -1,4 +1,5 @@
 import AppKit
+import DesignSystemCore
 
 /// Pure-code rendering of Murmur's icon family. Avoids shipping
 /// `Assets.xcassets` / `.icns` so the SPM build stays a single
@@ -23,10 +24,15 @@ enum MurmurIcon {
     /// Pure-black glyph on transparent background, marked as template so
     /// macOS tints it correctly for light/dark/accented menubars.
     static func menubarGlyph(_ state: GlyphState, size: CGFloat = 18) -> NSImage {
-        let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
-            drawMenubarGlyph(state: state, in: rect)
-            return true
-        }
+        // Rasterize eagerly via lockFocus rather than the lazy
+        // `NSImage(size:flipped:drawingHandler:)` form. The lazy handler is
+        // invoked by AppKit at display time on a context we don't control;
+        // an eagerly-drawn bitmap is a concrete image the status bar can
+        // always render, which is more robust for a menubar template image.
+        let image = NSImage(size: NSSize(width: size, height: size))
+        image.lockFocus()
+        drawMenubarGlyph(state: state, in: NSRect(x: 0, y: 0, width: size, height: size))
+        image.unlockFocus()
         image.isTemplate = true
         image.accessibilityDescription = "Murmur"
         return image
@@ -158,104 +164,10 @@ enum MurmurIcon {
     // MARK: - App icon (Ink-palette Dot)
 
     /// Full-color app icon at the requested size. Call with 512 or 1024
-    /// for `NSApp.applicationIconImage`.
+    /// for `NSApp.applicationIconImage`. Drawing lives in
+    /// `DesignSystemCore.InkIcon` so the build-time `.icns` generator shares it.
     static func appIcon(size: CGFloat = 512) -> NSImage {
-        return NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
-            drawInkDot(in: rect)
-            return true
-        }
-    }
-
-    private static let squircleRadiusRatio: CGFloat = 0.2237
-
-    private static func drawInkDot(in rect: NSRect) {
-        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        let s = rect.width
-        let r = s * squircleRadiusRatio
-
-        // Clip to squircle (rounded rect as approximation — iOS/Big Sur icons
-        // use a quintic superellipse, but a rounded rect at 0.2237 is close
-        // enough at export sizes and is what NSBezierPath can do natively).
-        let squircle = NSBezierPath(roundedRect: rect, xRadius: r, yRadius: r)
-        ctx.saveGState()
-        squircle.addClip()
-
-        // 1. Ink background — 165° linear gradient #1e2a3c → #0c1626.
-        // 165° in CSS is "from top, rotating clockwise" = direction vector
-        // (sin 165°, -cos 165°) ≈ (0.259, 0.966) — i.e. mostly downward, slight right.
-        // In AppKit gradient coords we go from start (top-ish-left) to end (bottom-ish-right).
-        let top = NSColor(red: 0x1e / 255.0, green: 0x2a / 255.0, blue: 0x3c / 255.0, alpha: 1.0)
-        let bot = NSColor(red: 0x0c / 255.0, green: 0x16 / 255.0, blue: 0x26 / 255.0, alpha: 1.0)
-        let bg = NSGradient(colors: [top, bot])
-        // 165° in CSS ≈ 255° in AppKit NSGradient angle (AppKit uses CCW from +x).
-        // Easier: draw linearly from start/end points.
-        let dx = sin(165 * .pi / 180) * s
-        let dy = -cos(165 * .pi / 180) * s
-        bg?.draw(from: NSPoint(x: rect.midX - dx / 2, y: rect.midY + dy / 2),
-                 to:   NSPoint(x: rect.midX + dx / 2, y: rect.midY - dy / 2),
-                 options: [])
-
-        // 2. Warm halo — radial gradient centered, rgba(245,235,210,0.35) → 0.12 → 0.
-        let haloColor = NSColor(red: 245/255.0, green: 235/255.0, blue: 210/255.0, alpha: 1.0)
-        if let halo = NSGradient(colors: [
-            haloColor.withAlphaComponent(0.35),
-            haloColor.withAlphaComponent(0.12),
-            haloColor.withAlphaComponent(0.0),
-        ], atLocations: [0.0, 0.22, 0.5], colorSpace: .deviceRGB) {
-            halo.draw(fromCenter: NSPoint(x: rect.midX, y: rect.midY), radius: 0,
-                      toCenter: NSPoint(x: rect.midX, y: rect.midY), radius: s * 0.5,
-                      options: [])
-        }
-
-        // 3. Soft outer glow behind the dot — #f3e9cf spread.
-        let glowColor = NSColor(red: 0xf3 / 255.0, green: 0xe9 / 255.0, blue: 0xcf / 255.0, alpha: 0.55)
-        ctx.saveGState()
-        ctx.setShadow(offset: .zero, blur: s * 0.2, color: glowColor.cgColor)
-        let dotDiameter = s * 0.22
-        let dotRect = NSRect(
-            x: rect.midX - dotDiameter / 2,
-            y: rect.midY - dotDiameter / 2,
-            width: dotDiameter,
-            height: dotDiameter
-        )
-        // Fill with a neutral so the shadow casts; the real dot gradient is drawn next.
-        NSColor(red: 0xf3 / 255.0, green: 0xe9 / 255.0, blue: 0xcf / 255.0, alpha: 1.0).setFill()
-        NSBezierPath(ovalIn: dotRect).fill()
-        ctx.restoreGState()
-
-        // 4. Cream core — radial gradient #fdfaf1 → #f3e9cf (55%) → #d7c48e (100%).
-        let core1 = NSColor(red: 0xfd / 255.0, green: 0xfa / 255.0, blue: 0xf1 / 255.0, alpha: 1.0)
-        let core2 = NSColor(red: 0xf3 / 255.0, green: 0xe9 / 255.0, blue: 0xcf / 255.0, alpha: 1.0)
-        let core3 = NSColor(red: 0xd7 / 255.0, green: 0xc4 / 255.0, blue: 0x8e / 255.0, alpha: 1.0)
-        if let core = NSGradient(colors: [core1, core2, core3],
-                                 atLocations: [0.0, 0.55, 1.0],
-                                 colorSpace: .deviceRGB) {
-            ctx.saveGState()
-            NSBezierPath(ovalIn: dotRect).addClip()
-            core.draw(fromCenter: NSPoint(x: dotRect.midX, y: dotRect.midY), radius: 0,
-                      toCenter: NSPoint(x: dotRect.midX, y: dotRect.midY), radius: dotDiameter * 0.6,
-                      options: [])
-            ctx.restoreGState()
-        }
-
-        // 5. Reflection highlight — small ellipse, soft, upper-left of the dot.
-        // JSX positions at left:50%, top:43% with w=0.07s, h=0.045s, blur 2px.
-        // In AppKit y-up that's slightly *above* the dot center.
-        let reflW = s * 0.07
-        let reflH = s * 0.045
-        let reflRect = NSRect(
-            x: rect.midX - reflW / 2,
-            y: rect.midY + s * 0.07 - reflH / 2,  // 43% from top in a 100% box = 7% above center
-            width: reflW,
-            height: reflH
-        )
-        ctx.saveGState()
-        ctx.setShadow(offset: .zero, blur: s * 0.02, color: NSColor.white.withAlphaComponent(0.75).cgColor)
-        NSColor.white.withAlphaComponent(0.75).setFill()
-        NSBezierPath(ovalIn: reflRect).fill()
-        ctx.restoreGState()
-
-        ctx.restoreGState()
+        InkIcon.appIcon(size: size)
     }
 
     // MARK: - State mapping helper

@@ -20,10 +20,19 @@ let package = Package(
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
     ],
     targets: [
+        // Dependency-free design primitives (Ink palette, serif font helper,
+        // hand-drawn arrow geometry). Pure AppKit/Foundation — NO Sparkle, no
+        // SwiftUI — so the DMGAssets build-time tool can reuse the tokens
+        // without dragging in the auto-update framework or app UI code.
+        .target(
+            name: "DesignSystemCore",
+            path: "Sources/DesignSystemCore"
+        ),
         .target(
             name: "Murmur",
             dependencies: [
                 .product(name: "Sparkle", package: "Sparkle"),
+                "DesignSystemCore",
             ],
             path: "Sources/Murmur",
             swiftSettings: [
@@ -44,6 +53,14 @@ let package = Package(
             name: "MurmurTests",
             dependencies: ["Murmur"],
             path: "tests/MurmurTests"
+        ),
+        // Build-time tool that renders the DMG background image. Depends on
+        // DesignSystemCore ONLY (not Murmur) so it reuses the Ink palette /
+        // serif font / arrow geometry without linking Sparkle or app UI code.
+        .executableTarget(
+            name: "DMGAssets",
+            dependencies: ["DesignSystemCore"],
+            path: "Sources/DMGAssets"
         ),
     ]
 )
