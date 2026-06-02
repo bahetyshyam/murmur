@@ -9,6 +9,7 @@ import { join } from 'path'
 interface HotkeyAddon {
   install(targetKeycode: number, cb: (event: string) => void): boolean
   uninstall(): void
+  paste(): boolean
 }
 
 // Modifier keycodes (Swift parity). Default: Right Option (alt_r).
@@ -88,6 +89,12 @@ export function startHotkey(keycode: number, onToggle: () => void, onInstalled?:
  *  bootstrap (project rule). Returns whether already trusted. */
 export function promptAccessibility(): boolean {
   return systemPreferences.isTrustedAccessibilityClient(true)
+}
+
+/** Synthesize ⌘V into the focused app (via the native addon). Returns false if
+ *  the addon is unavailable or the event couldn't be posted. */
+export function nativePaste(): boolean {
+  return loadAddon()?.paste() ?? false
 }
 
 export function stopHotkey(): void {

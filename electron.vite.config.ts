@@ -19,7 +19,10 @@ export default defineConfig({
   preload: {
     build: {
       rollupOptions: {
-        input: { index: resolve(__dirname, 'src/preload/index.ts') },
+        input: {
+          index: resolve(__dirname, 'src/preload/index.ts'),
+          'recorder-host': resolve(__dirname, 'src/preload/recorder-host.ts'),
+        },
       },
     },
   },
@@ -27,7 +30,10 @@ export default defineConfig({
     root: 'src/renderer',
     build: {
       rollupOptions: {
-        input: { settings: resolve(__dirname, 'src/renderer/index.html') },
+        input: {
+          settings: resolve(__dirname, 'src/renderer/index.html'),
+          'recorder-host': resolve(__dirname, 'src/renderer/recorder-host.html'),
+        },
       },
     },
     plugins: [react()],

@@ -122,9 +122,37 @@ Value Uninstall(const CallbackInfo& info) {
   return env.Undefined();
 }
 
+// paste() -> boolean : synthesize ⌘V into the focused app (Swift Paster parity:
+// combined-session source, V keycode 9, Command flag, posted to the annotated
+// session tap so it reaches the focused app and isn't swallowed by our own tap).
+Value Paste(const CallbackInfo& info) {
+  Env env = info.Env();
+  CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateCombinedSessionState);
+  if (!src) return Napi::Boolean::New(env, false);
+
+  const CGKeyCode kVKeyCodeV = 9;  // 'V' on a US layout (translated by position)
+  CGEventRef down = CGEventCreateKeyboardEvent(src, kVKeyCodeV, true);
+  CGEventRef up = CGEventCreateKeyboardEvent(src, kVKeyCodeV, false);
+  if (!down || !up) {
+    if (down) CFRelease(down);
+    if (up) CFRelease(up);
+    CFRelease(src);
+    return Napi::Boolean::New(env, false);
+  }
+  CGEventSetFlags(down, kCGEventFlagMaskCommand);
+  CGEventSetFlags(up, kCGEventFlagMaskCommand);
+  CGEventPost(kCGAnnotatedSessionEventTap, down);
+  CGEventPost(kCGAnnotatedSessionEventTap, up);
+  CFRelease(down);
+  CFRelease(up);
+  CFRelease(src);
+  return Napi::Boolean::New(env, true);
+}
+
 Object Init(Env env, Object exports) {
   exports.Set("install", Function::New(env, Install));
   exports.Set("uninstall", Function::New(env, Uninstall));
+  exports.Set("paste", Function::New(env, Paste));
   return exports;
 }
 
