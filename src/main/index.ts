@@ -1,5 +1,7 @@
-import { app, Tray, Menu, BrowserWindow, nativeImage, shell } from 'electron'
+import { app, Tray, Menu, BrowserWindow, nativeImage, shell, session, ipcMain } from 'electron'
 import { join } from 'path'
+import { writeFile } from 'fs/promises'
+import { tmpdir } from 'os'
 import { TRAY_ICON_IDLE, TRAY_ICON_RECORDING } from './trayIcon'
 
 // Phase A — the menubar shell: a dock-less accessory app whose only persistent
@@ -90,6 +92,27 @@ function showSettings(): void {
   }
 }
 
+// Allow microphone capture (getUserMedia) from our renderer. The macOS TCC
+// prompt still fires on first use; the bundle's NSMicrophoneUsageDescription
+// (set in electron-builder.yml) is what lets that prompt appear.
+function allowMediaPermissions(): void {
+  const ses = session.defaultSession
+  // 'media' covers microphone capture in Electron's permission model.
+  ses.setPermissionRequestHandler((_wc, permission, cb) => {
+    cb(permission === 'media')
+  })
+  ses.setPermissionCheckHandler((_wc, permission) => {
+    return permission === 'media'
+  })
+}
+
+// Phase B (debug): persist a captured WAV so its format can be verified.
+ipcMain.handle('debug:save-wav', async (_e, wav: ArrayBuffer): Promise<string> => {
+  const path = join(tmpdir(), 'murmur_phaseB.wav')
+  await writeFile(path, Buffer.from(wav))
+  return path
+})
+
 app.whenReady().then(() => {
   // Dock-less accessory app (Swift LSUIElement parity). NOTE: the tray only
   // renders in a packaged Murmur.app bundle — dev-mode `npx electron .` (the
@@ -97,6 +120,8 @@ app.whenReady().then(() => {
   // via the packaged app (npm run pack).
   app.dock?.hide()
   if (process.platform === 'darwin') app.setActivationPolicy('accessory')
+
+  allowMediaPermissions()
 
   tray = new Tray(trayImage('idle'))
   refreshTray()
