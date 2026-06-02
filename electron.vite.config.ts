@@ -1,5 +1,5 @@
 import { resolve } from 'path'
-import { defineConfig } from 'electron-vite'
+import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 
 // macOS-first Electron + React + TS. One renderer for now (Settings); the
@@ -7,6 +7,10 @@ import react from '@vitejs/plugin-react'
 // later phases.
 export default defineConfig({
   main: {
+    // Keep production deps (e.g. better-sqlite3) OUT of the bundle so native
+    // modules are require'd from node_modules at runtime — bundling them breaks
+    // their .node binding loader in the packaged app.
+    plugins: [externalizeDepsPlugin()],
     build: {
       rollupOptions: {
         input: { index: resolve(__dirname, 'src/main/index.ts') },
@@ -17,6 +21,7 @@ export default defineConfig({
     },
   },
   preload: {
+    plugins: [externalizeDepsPlugin()],
     build: {
       rollupOptions: {
         input: {
