@@ -34,6 +34,7 @@ final class AppModel {
     /// UI references — set post-init by AppDelegate; weak to avoid cycles.
     weak var menuBar: MenuBarController?
     weak var windows: WindowManager?
+    weak var updater: Updater?
 
     private let log = Logger(subsystem: "com.local.murmur", category: "state")
     private var errorClearTask: Task<Void, Never>?
@@ -214,4 +215,5 @@ final class AppModel {
     func showPermissionsHelp() {
         Onboarding.showPermissionsHelp(config: config, windows: windows)
     }
+    func checkForUpdates() { updater?.checkForUpdates() }
 }

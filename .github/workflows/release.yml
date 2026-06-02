@@ -110,7 +110,16 @@ jobs:
       - name: Install create-dmg
         run: brew install create-dmg
 
-      - name: Build release (.app + .dmg)
+      # build_release.sh also generates and EdDSA-signs the Sparkle appcast
+      # (dist/appcast.xml). The signing key is the one exported locally with
+      # `generate_keys -x key.txt`; store the file's contents as the
+      # SPARKLE_ED_PRIVATE_KEY secret (repo Settings → Secrets). The matching
+      # public key is baked into Info.plist as SUPublicEDKey. The Sparkle CLI
+      # tools (generate_appcast) ship inside the SPM binary artifact that the
+      # build resolves, so no extra install step is needed.
+      - name: Build release (.app + .dmg + appcast)
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
         run: ./scripts/build_release.sh
 
       - name: List dist/
@@ -120,14 +129,22 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Murmur-macos
-          path: dist/Murmur-*.dmg
+          path: |
+            dist/Murmur-*.dmg
+            dist/appcast.xml
           if-no-files-found: error
 
-      - name: Attach dmg to GitHub Release
+      # Attach BOTH the DMG and appcast.xml. The appcast becomes reachable at
+      # the permanently-stable …/releases/latest/download/appcast.xml, which is
+      # the SUFeedURL in Info.plist — that's how installed copies discover this
+      # release.
+      - name: Attach dmg + appcast to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Murmur-*.dmg
+          files: |
+            dist/Murmur-*.dmg
+            dist/appcast.xml
           generate_release_notes: true
           draft: false
           prerelease: false

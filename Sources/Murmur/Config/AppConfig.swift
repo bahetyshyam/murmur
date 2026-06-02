@@ -39,6 +39,7 @@ final class AppConfig {
     var chimesEnabled: Bool { didSet { persist(\.chimesEnabled, Keys.chimesEnabled) } }
     var hudEnabled: Bool { didSet { persist(\.hudEnabled, Keys.hudEnabled) } }
     var historyRetentionDays: Int { didSet { persist(\.historyRetentionDays, Keys.historyRetentionDays) } }
+    var autoCheckUpdates: Bool { didSet { persist(\.autoCheckUpdates, Keys.autoCheckUpdates) } }
 
     // MARK: Init
 
@@ -68,6 +69,7 @@ final class AppConfig {
         self.chimesEnabled = (defaults.object(forKey: Keys.chimesEnabled) as? Bool) ?? true
         self.hudEnabled = (defaults.object(forKey: Keys.hudEnabled) as? Bool) ?? true
         self.historyRetentionDays = (defaults.object(forKey: Keys.historyRetentionDays) as? Int) ?? 30
+        self.autoCheckUpdates = (defaults.object(forKey: Keys.autoCheckUpdates) as? Bool) ?? true
     }
 
     // MARK: Private
@@ -92,5 +94,6 @@ final class AppConfig {
         static let chimesEnabled = "chimesEnabled"
         static let hudEnabled = "hudEnabled"
         static let historyRetentionDays = "historyRetentionDays"
+        static let autoCheckUpdates = "autoCheckUpdates"
     }
 }

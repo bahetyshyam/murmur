@@ -92,7 +92,14 @@ If the hotkey isn't working, the menu will show **"Hotkey disabled — grant Acc
 
 ## Updating
 
-When a new version ships, just download the new zip, drag `Murmur.app` into Applications, and replace the old one. Your API key and settings are preserved (they live in the Keychain and `~/Library/Application Support/Murmur/`).
+**Murmur updates itself.** It checks for new versions in the background and installs them quietly — the next time you launch, you're on the latest version. Nothing to download, no dragging into Applications, no re-clearing Gatekeeper.
+
+- Want to check right now? Menubar → **Check for Updates…**
+- Prefer to stay put? Settings → General → turn off **Automatically check for updates**. (You can still update manually from the menu whenever you like.)
+
+Your API key and settings are preserved across updates (they live in the Keychain and `~/Library/Application Support/Murmur/`), and so are your Microphone/Accessibility grants — Murmur ships with a stable code signature, so macOS keeps trusting it build to build.
+
+> **One-time note for the switch-over:** the auto-updater is itself a new feature, so the *first* update onto an auto-updating build is a manual download (the version you have now doesn't know how to update). Every version after that is automatic.
 
 ---
 
@@ -126,7 +133,7 @@ Make sure you launched `Murmur.app` (not a bare binary). If it still doesn't sho
 
 Menubar → **Settings…** (or ⌘,):
 
-- **General** — model, hotkey, chime/HUD/paste toggles
+- **General** — model, hotkey, chime/HUD/paste toggles, automatic updates
 - **API Key** — paste or clear the OpenAI key
 - **Advanced** — biasing prompt, language, toggle-debounce, sample rate, history retention
 
@@ -146,7 +153,7 @@ cd chatgpt-voice-to-text
 open dist/Murmur.app
 ```
 
-Produces `dist/Murmur.app` and `dist/Murmur-<version>.zip`.
+Produces `dist/Murmur.app`, `dist/Murmur-<version>.dmg`, and `dist/appcast.xml` (the Sparkle update feed). The build embeds and re-signs `Sparkle.framework` and EdDSA-signs the appcast — see the header of `scripts/build_release.sh` for the one-time key setup.
 
 During development:
 
@@ -165,7 +172,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The workflow builds `Murmur.app` on a `macos-14` runner, zips it, and attaches the zip to a new GitHub Release. You can also trigger a manual build from the **Actions** tab (uploads a zip artifact without cutting a release).
+The workflow builds `Murmur.app` on a `macos-14` runner, packages it as a signed `.dmg`, generates the EdDSA-signed `appcast.xml`, and attaches **both** to a new GitHub Release. Sparkle reads the appcast from the stable `releases/latest/download/appcast.xml` URL, so publishing a release is all it takes for existing installs to pick up the update. (CI needs the `SPARKLE_ED_PRIVATE_KEY` secret — see `.github/workflows/release.yml`.) You can also trigger a manual build from the **Actions** tab (uploads the artifacts without cutting a release).
 
 ---
 

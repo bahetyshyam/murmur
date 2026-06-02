@@ -17,7 +17,8 @@ dist/
 # Swift / SPM
 .build/
 .swiftpm/
-Package.resolved
+# Package.resolved IS committed: this is an app (not a library), and pinning
+# the resolved Sparkle version keeps local and CI builds reproducible.
 *.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/
 DerivedData/
@@ -29,6 +30,9 @@ VoiceToText.app/
 .env
 .env.*
 *.local
+
+# Local design references (competitor screenshots, inspiration — not shipped)
+design-references/
 
 # Editors
 .vscode/

@@ -30,5 +30,24 @@
     <string>Murmur records audio while you hold the hotkey so it can be transcribed.</string>
     <key>NSAppleEventsUsageDescription</key>
     <string>Murmur uses Apple Events to paste transcribed text into the focused app.</string>
+
+    <!-- Sparkle auto-update. The feed is published as a release asset, so
+         the latest/download redirect always resolves to the newest release's
+         appcast.xml (see .github/workflows/release.yml). SUPublicEDKey is the
+         Ed25519 public key; the matching private key signs each update and
+         lives in the maintainer's login keychain / the SPARKLE_ED_PRIVATE_KEY
+         CI secret. Automatic checks + silent background install are enabled by
+         default and mirrored by the "Automatically check for updates" toggle
+         in Settings (config.autoCheckUpdates). -->
+    <key>SUFeedURL</key>
+    <string>https://github.com/bahetyshyam/murmur/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>MRK1kqEbNK6JMiJmwHTVVtTRBqm/drl/I/uFVD+k/nw=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+    <key>SUAutomaticallyUpdate</key>
+    <true/>
+    <key>SUScheduledCheckInterval</key>
+    <integer>86400</integer>
 </dict>
 </plist>

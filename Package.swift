@@ -12,9 +12,19 @@ let package = Package(
     products: [
         .executable(name: "Murmur", targets: ["MurmurApp"]),
     ],
+    dependencies: [
+        // Auto-update framework. Linked into the Murmur library; the
+        // Sparkle.framework binary is copied into the .app bundle and
+        // re-signed by scripts/build_release.sh (Xcode's "Embed Frameworks"
+        // phase has no SPM/CLI equivalent).
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
+    ],
     targets: [
         .target(
             name: "Murmur",
+            dependencies: [
+                .product(name: "Sparkle", package: "Sparkle"),
+            ],
             path: "Sources/Murmur",
             swiftSettings: [
                 .enableUpcomingFeature("BareSlashRegexLiterals"),
@@ -23,7 +33,12 @@ let package = Package(
         .executableTarget(
             name: "MurmurApp",
             dependencies: ["Murmur"],
-            path: "Sources/MurmurApp"
+            path: "Sources/MurmurApp",
+            // Sparkle.framework lives in Contents/Frameworks of the bundle;
+            // teach the executable to resolve @rpath dylibs from there.
+            linkerSettings: [
+                .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"]),
+            ]
         ),
         .executableTarget(
             name: "MurmurTests",

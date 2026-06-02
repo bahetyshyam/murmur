@@ -6,5 +6,13 @@
     <true/>
     <key>com.apple.security.automation.apple-events</key>
     <true/>
+    <!-- Allow loading the embedded Sparkle.framework. Under hardened runtime,
+         library validation requires loaded code to share the host's Team ID.
+         We sign self-signed ("Murmur Dev", no Team ID), so team-matching can
+         never be satisfied — re-signing the framework with the same identity
+         isn't enough. Disabling library validation is the standard, necessary
+         path for a self-signed (non-notarized) app embedding a framework. -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
 </dict>
 </plist>

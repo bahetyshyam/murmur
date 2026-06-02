@@ -139,6 +139,7 @@ final class MenuBarController {
         menu.addItem(actionItem("History…", #selector(openHistory(_:))))
         menu.addItem(actionItem("Settings…", #selector(openSettings(_:)), keyEquivalent: ","))
         menu.addItem(actionItem("Permissions Help…", #selector(openPermissions(_:))))
+        menu.addItem(actionItem("Check for Updates…", #selector(checkForUpdates(_:))))
 
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(
@@ -160,6 +161,7 @@ final class MenuBarController {
     @objc private func openHistory(_ sender: Any?)     { appModel?.showHistoryWindow() }
     @objc private func openSettings(_ sender: Any?)    { appModel?.showSettingsWindow() }
     @objc private func openPermissions(_ sender: Any?) { appModel?.showPermissionsHelp() }
+    @objc private func checkForUpdates(_ sender: Any?) { appModel?.checkForUpdates() }
 
     @objc private func openAccessibilityPane(_ sender: Any?) {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {

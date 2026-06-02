@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkey: HotkeyMonitor?
     private var micPermission: MicPermissionMonitor?
     private var windows: WindowManager?
+    private var updater: Updater?
 
     /// Guards the "no API key → prompt" flow so we don't badger the user
     /// every time accessibility re-negotiates during a session.
@@ -57,9 +58,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let windows = WindowManager(config: config, history: history)
         let model = AppModel(config: config, history: history)
 
+        // Auto-updater (Sparkle). Starts its own background scheduler; the
+        // per-launch cadence and silent download/install are driven off
+        // `config.autoCheckUpdates`. The "Check for Updates…" menu item
+        // routes MenuBarController → AppModel → here.
+        let updater = Updater(config: config)
+
         menuBar.appModel = model
         model.menuBar = menuBar
         model.windows = windows
+        model.updater = updater
         menuBar.apply(state: model.state)
 
         // First-run wizard. Non-blocking — bootstrap continues while the
@@ -122,6 +130,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             MainActor.assumeIsolated { hotkey?.restart() }
         }
 
+        // Settings posts `.murmurAutoCheckUpdatesChanged` after writing the
+        // new value to `config.autoCheckUpdates`; push it into the live
+        // updater so the toggle takes effect without a relaunch.
+        NotificationCenter.default.addObserver(
+            forName: .murmurAutoCheckUpdatesChanged,
+            object: nil,
+            queue: .main
+        ) { [weak updater] _ in
+            MainActor.assumeIsolated { updater?.applyAutoCheckPreference() }
+        }
+
         self.config = config
         self.history = history
         self.menuBar = menuBar
@@ -129,6 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.hotkey = hotkey
         self.micPermission = micPermission
         self.windows = windows
+        self.updater = updater
 
         logKeychainStatus()
     }

@@ -38,6 +38,24 @@
 # (The `-macalg SHA1 ... -legacy` flags are for OpenSSL-3 / Apple Security
 # MAC compatibility — otherwise import fails with "MAC verification failed".)
 #
+# --- Sparkle update signing (EdDSA) ----------------------------------------
+# This script embeds Sparkle.framework and generates an EdDSA-signed
+# appcast.xml. Signing needs the private key created once with:
+#
+#   .build/artifacts/sparkle/Sparkle/bin/generate_keys
+#
+# which stores the key in your login keychain and prints the SUPublicEDKey to
+# paste into Resources/Info.plist. Locally, generate_appcast reads the key from
+# the keychain automatically. For CI, export it once:
+#
+#   .build/artifacts/sparkle/Sparkle/bin/generate_keys -x sparkle_priv.txt
+#
+# and store the file's contents as the SPARKLE_ED_PRIVATE_KEY GitHub secret
+# (this script reads that env var and passes it via --ed-key-file). The public
+# key in Info.plist and the private key MUST stay paired — losing the private
+# key means existing installs can no longer verify (and thus can't accept)
+# updates.
+#
 # Usage: ./scripts/build_release.sh
 #
 # After building:
@@ -109,6 +127,26 @@ if [[ -d "$SPM_RESOURCES_BUNDLE" ]]; then
     cp -R "$SPM_RESOURCES_BUNDLE" "$APP_BUNDLE/Contents/Resources/"
 fi
 
+# --- Embed Sparkle.framework ------------------------------------------------
+# `swift build` links Sparkle but — unlike Xcode's "Embed Frameworks" phase —
+# does not copy the framework into the bundle. Locate the universal
+# (arm64+x86_64) framework from the resolved SPM binary artifact and copy it
+# into Contents/Frameworks. The executable already carries an
+# `@executable_path/../Frameworks` rpath (see Package.swift) so it resolves
+# the dylib at runtime.
+echo "==> Embedding Sparkle.framework"
+SPARKLE_FRAMEWORK="$(find "$BUILD_DIR/artifacts" -type d -name 'Sparkle.framework' -path '*macos-arm64_x86_64*' 2>/dev/null | head -1)"
+if [[ -z "$SPARKLE_FRAMEWORK" || ! -d "$SPARKLE_FRAMEWORK" ]]; then
+    echo "ERROR: Sparkle.framework not found under $BUILD_DIR/artifacts." >&2
+    echo "       Run 'swift build' (or 'swift package resolve') first." >&2
+    exit 1
+fi
+FRAMEWORKS_DIR="$APP_BUNDLE/Contents/Frameworks"
+mkdir -p "$FRAMEWORKS_DIR"
+# `-R` preserves the Versions/Current symlink structure that codesign requires.
+cp -R "$SPARKLE_FRAMEWORK" "$FRAMEWORKS_DIR/"
+DEST_FW="$FRAMEWORKS_DIR/Sparkle.framework"
+
 CODESIGN_IDENTITY="${CODESIGN_IDENTITY:-Murmur Dev}"
 echo "==> codesign (--sign \"$CODESIGN_IDENTITY\", hardened runtime)"
 # Use `find-identity` WITHOUT `-v` (and without `-p codesigning`): both of
@@ -121,6 +159,26 @@ if ! security find-identity | grep -q "\"$CODESIGN_IDENTITY\""; then
     echo "       See the header comment in this script for how to regenerate it." >&2
     exit 1
 fi
+
+# Sparkle must be signed inside-out (nested helpers first, framework last)
+# with the SAME identity as the app. Hardened runtime (`--options runtime`)
+# turns on library validation, which refuses to load a framework signed by a
+# different team — re-signing with our identity is what makes the dylib
+# loadable. We're not sandboxed, so the nested helpers need no entitlements.
+echo "==> codesign Sparkle.framework (inside-out, \"$CODESIGN_IDENTITY\")"
+SPARKLE_VDIR="$(/bin/ls "$DEST_FW/Versions" | grep -v Current | head -1)"
+SPARKLE_INNER="$DEST_FW/Versions/$SPARKLE_VDIR"
+for component in \
+    "$SPARKLE_INNER/XPCServices/Downloader.xpc" \
+    "$SPARKLE_INNER/XPCServices/Installer.xpc" \
+    "$SPARKLE_INNER/Updater.app" \
+    "$SPARKLE_INNER/Autoupdate"; do
+    if [[ -e "$component" ]]; then
+        codesign --force --sign "$CODESIGN_IDENTITY" --options runtime --timestamp=none "$component"
+    fi
+done
+codesign --force --sign "$CODESIGN_IDENTITY" --options runtime --timestamp=none "$DEST_FW"
+
 if [[ -f "$ENTITLEMENTS" ]]; then
     codesign --force --sign "$CODESIGN_IDENTITY" \
         --options runtime \
@@ -132,7 +190,10 @@ else
 fi
 
 echo "==> Verifying signature"
-codesign --verify --verbose=2 "$APP_BUNDLE"
+# --deep --strict so a mis-signed nested Sparkle component (XPC service,
+# Updater.app, Autoupdate, or the framework itself) fails the build here
+# rather than silently at the user's first update.
+codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 
 echo "==> Building DMG"
 rm -f "$DMG_PATH"
@@ -177,9 +238,50 @@ fi
 echo "==> codesign DMG"
 codesign --force --sign "$CODESIGN_IDENTITY" --timestamp=none "$DMG_PATH"
 
+# --- Generate the Sparkle appcast -------------------------------------------
+# Sparkle reads `appcast.xml` (published as a release asset, reachable at the
+# stable `releases/latest/download/appcast.xml`) to learn about new versions.
+# `generate_appcast` mounts the DMG, reads the bundle version, computes the
+# EdDSA signature, and writes the feed. We run it over a clean staging dir
+# holding only THIS build's DMG so the feed lists a single item whose
+# enclosure points at this release's asset (download-url-prefix below).
+echo "==> Generating appcast.xml"
+GENERATE_APPCAST="$(find "$BUILD_DIR/artifacts" -type f -name generate_appcast -path '*Sparkle*' 2>/dev/null | head -1)"
+if [[ -z "$GENERATE_APPCAST" ]]; then
+    echo "ERROR: generate_appcast not found under $BUILD_DIR/artifacts." >&2
+    exit 1
+fi
+
+APPCAST_STAGING="$(mktemp -d -t murmur-appcast.XXXXXX)"
+trap 'rm -rf "$DMG_STAGING" "$APPCAST_STAGING" "${ED_KEY_FILE:-}"' EXIT
+cp "$DMG_PATH" "$APPCAST_STAGING/"
+
+DOWNLOAD_PREFIX="https://github.com/bahetyshyam/murmur/releases/download/v${VERSION}/"
+
+# EdDSA private key: locally read from the login keychain (created once via
+# `generate_keys`); in CI, provide it through the SPARKLE_ED_PRIVATE_KEY env
+# var (the key string exported by `generate_keys -x`).
+ED_KEY_ARGS=()
+if [[ -n "${SPARKLE_ED_PRIVATE_KEY:-}" ]]; then
+    ED_KEY_FILE="$(mktemp)"
+    printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$ED_KEY_FILE"
+    ED_KEY_ARGS=(--ed-key-file "$ED_KEY_FILE")
+fi
+
+# `${ARR[@]+"${ARR[@]}"}` guards against macOS's bash 3.2 treating an empty
+# array expansion as an unbound variable under `set -u`.
+"$GENERATE_APPCAST" \
+    ${ED_KEY_ARGS[@]+"${ED_KEY_ARGS[@]}"} \
+    --download-url-prefix "$DOWNLOAD_PREFIX" \
+    --link "https://github.com/bahetyshyam/murmur" \
+    "$APPCAST_STAGING"
+
+cp "$APPCAST_STAGING/appcast.xml" "$DIST_DIR/appcast.xml"
+
 echo
-echo "Built: $APP_BUNDLE"
-echo "DMG:   $DMG_PATH"
+echo "Built:   $APP_BUNDLE"
+echo "DMG:     $DMG_PATH"
+echo "Appcast: $DIST_DIR/appcast.xml"
 echo
 echo "Launch with:   open '$APP_BUNDLE'"
 echo "Share:         send $(basename "$DMG_PATH") — friends drag to /Applications, then right-click → Open on first launch."

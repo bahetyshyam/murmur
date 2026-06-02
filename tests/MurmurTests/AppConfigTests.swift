@@ -10,7 +10,7 @@ enum AppConfigTests {
                 defer { defaults.removePersistentDomain(forName: suite) }
 
                 let cfg = AppConfig(defaults: defaults)
-                Harness.expectEqual(cfg.hotkey, "chord:50:524288")
+                Harness.expectEqual(cfg.hotkey, "alt_r")
                 Harness.expectEqual(cfg.model, "gpt-4o-transcribe")
                 Harness.expectEqual(cfg.biasingPrompt, "")
                 Harness.expectEqual(cfg.language, "")
@@ -23,6 +23,7 @@ enum AppConfigTests {
                 Harness.expectEqual(cfg.chimesEnabled, true)
                 Harness.expectEqual(cfg.hudEnabled, true)
                 Harness.expectEqual(cfg.historyRetentionDays, 30)
+                Harness.expectEqual(cfg.autoCheckUpdates, true)
             }
 
             Harness.test("mutationsPersist") {

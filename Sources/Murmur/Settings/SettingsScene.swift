@@ -10,6 +10,10 @@ extension Notification.Name {
     /// rebuilds the HotkeyMonitor so the change takes effect without a
     /// relaunch.
     static let murmurHotkeyChanged = Notification.Name("com.local.murmur.hotkeyChanged")
+
+    /// Posted after Settings writes a new `config.autoCheckUpdates`.
+    /// AppDelegate pushes the new value into the live Sparkle updater.
+    static let murmurAutoCheckUpdatesChanged = Notification.Name("com.local.murmur.autoCheckUpdatesChanged")
 }
 
 /// Native Preferences window. Tabs: General / API Key / Advanced.
@@ -165,6 +169,22 @@ struct SettingsView: View {
                 isOn: Binding(
                     get: { config.restoreClipboard },
                     set: { config.restoreClipboard = $0 }
+                )
+            )
+
+            InlineDivider()
+
+            ToggleRow(
+                label: "Automatically check for updates",
+                caption: "Download and install new versions in the background.",
+                isOn: Binding(
+                    get: { config.autoCheckUpdates },
+                    set: {
+                        config.autoCheckUpdates = $0
+                        NotificationCenter.default.post(
+                            name: .murmurAutoCheckUpdatesChanged, object: nil
+                        )
+                    }
                 )
             )
         }
