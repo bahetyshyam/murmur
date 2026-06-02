@@ -5,6 +5,7 @@ import { tmpdir } from 'os'
 import { TRAY_ICON_IDLE, TRAY_ICON_RECORDING } from './trayIcon'
 import { setKey, clearKey, hasKey, getKey } from './keyStore'
 import { transcribe, makeError, type TranscribeOutcome } from './transcribe'
+import { startHotkey, stopHotkey, promptAccessibility, isHotkeyInstalled, HOTKEY_KEYCODES } from './hotkey'
 
 // Phase A — the menubar shell: a dock-less accessory app whose only persistent
 // presence is the tray. Mirrors the Swift app's MenuBarController + AppDelegate
@@ -40,6 +41,12 @@ function buildMenu(): Menu {
   return Menu.buildFromTemplate([
     { label: 'Murmur', enabled: false },
     { label: stateLabel(state), enabled: false },
+    ...(isHotkeyInstalled()
+      ? []
+      : [
+          { label: 'Hotkey disabled — grant Accessibility', enabled: false } as const,
+          { label: 'Grant Accessibility Access…', click: () => promptAccessibility() } as const,
+        ]),
     { type: 'separator' },
     { label: 'History…', click: () => { /* Phase F */ } },
     { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => showSettings() },
@@ -146,7 +153,23 @@ app.whenReady().then(() => {
 
   tray = new Tray(trayImage('idle'))
   refreshTray()
+
+  // Phase D: global modifier hotkey (Right Option). For now the toggle just
+  // flips the tray glyph idle↔recording as a visible test; the full
+  // record→transcribe→paste pipeline is wired once the state machine + capture
+  // host exist. Installs once Accessibility is granted (polled, no prompt).
+  startHotkey(HOTKEY_KEYCODES.alt_r, onHotkeyToggle, () => {
+    console.log('[hotkey] installed (Accessibility granted)')
+    refreshTray()
+  })
 })
+
+function onHotkeyToggle(): void {
+  state = state === 'recording' ? 'idle' : 'recording'
+  setState(state)
+  console.log('[hotkey] toggle → state =', state)
+}
 
 // Menubar app: don't quit when the last window closes.
 app.on('window-all-closed', () => {})
+app.on('will-quit', () => stopHotkey())

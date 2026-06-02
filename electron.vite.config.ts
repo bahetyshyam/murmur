@@ -10,6 +10,9 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: { index: resolve(__dirname, 'src/main/index.ts') },
+        // The native hotkey addon is loaded via createRequire at a runtime path
+        // — never bundle the .node binary into the main chunk.
+        external: [/\.node$/],
       },
     },
   },

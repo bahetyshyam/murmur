@@ -5,6 +5,10 @@ directories:
 files:
   - out/**/*
   - package.json
+  - native/build/Release/*.node
+# Native .node binaries can't be require'd from inside app.asar — unpack them.
+asarUnpack:
+  - native/build/Release/*.node
 mac:
   category: public.app-category.productivity
   target:

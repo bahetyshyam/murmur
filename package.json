@@ -7,10 +7,11 @@
   "main": "./out/main/index.js",
   "scripts": {
     "gen:tray": "node scripts/gen-tray-icon.mjs",
+    "build:native": "node-gyp rebuild --directory=native --arch=arm64 --target=$(node -p \"require('electron/package.json').version\") --dist-url=https://electronjs.org/headers",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "pack": "electron-vite build && electron-builder --mac --dir",
+    "pack": "npm run build:native && electron-vite build && electron-builder --mac --dir",
     "launch": "release/mac-arm64/Murmur.app/Contents/MacOS/Murmur",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
@@ -28,6 +29,8 @@
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
     "electron-vite": "^2.3.0",
+    "node-addon-api": "^8.8.0",
+    "node-gyp": "^12.3.0",
     "typescript": "~5.6.3",
     "vite": "^5.4.11"
   }
