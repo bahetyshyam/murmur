@@ -1,0 +1,18 @@
+appId: com.murmur.app
+productName: Murmur
+directories:
+  output: release
+files:
+  - out/**/*
+  - package.json
+mac:
+  category: public.app-category.productivity
+  target:
+    - dir
+  # Skip signing for this local test build (ad-hoc). Proper self-signed +
+  # hardened-runtime signing is wired up in Phase J.
+  identity: null
+  extendInfo:
+    LSUIElement: 1
+    NSMicrophoneUsageDescription: Murmur records audio while you hold the hotkey so it can be transcribed.
+    LSMinimumSystemVersion: "14.0"

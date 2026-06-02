@@ -1,0 +1,31 @@
+/* Provisional styling for the Phase A shell. The real design system (tokens,
+   primitives, a differentiated non-Wispr palette) arrives in Phase H. */
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  color-scheme: light dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+}
+
+.app {
+  padding: 28px 32px;
+}
+
+h1 {
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+
+.subtitle {
+  font-size: 13px;
+  margin: 0 0 14px;
+}
+
+.muted {
+  font-size: 12px;
+  opacity: 0.6;
+}

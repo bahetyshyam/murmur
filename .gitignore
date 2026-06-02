@@ -1,3 +1,10 @@
+# Node / Electron
+node_modules/
+out/
+out-tsc/
+release/
+*.log
+
 # macOS
 .DS_Store
 ._*
