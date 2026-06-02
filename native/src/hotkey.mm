@@ -69,8 +69,7 @@ Value Install(const CallbackInfo& info) {
   Env env = info.Env();
   if (gInstalled) return Napi::Boolean::New(env, true);
 
-  gTargetKeycode = (uint16_t)info[0].As<Number>().Uint32Value();
-  gModifierHeld = false;
+  uint16_t keycode = (uint16_t)info[0].As<Number>().Uint32Value();
   gTsfn = ThreadSafeFunction::New(env, info[1].As<Function>(), "MurmurHotkey", 0, 1);
 
   gTap = CGEventTapCreate(
@@ -82,9 +81,19 @@ Value Install(const CallbackInfo& info) {
   if (!gTap) {                                     // Accessibility not granted
     gTsfn.Release();
     gTsfn = ThreadSafeFunction();
-    return Napi::Boolean::New(env, false);
+    return Napi::Boolean::New(env, false);         // leave globals untouched on failure
   }
 
+  // Commit state only now that the tap exists.
+  gTargetKeycode = keycode;
+  gModifierHeld = false;
+
+  // Defensive: never overwrite a live source (normal flow has gSource == null).
+  if (gSource) {
+    CFRunLoopRemoveSource(CFRunLoopGetMain(), gSource, kCFRunLoopCommonModes);
+    CFRelease(gSource);
+    gSource = nullptr;
+  }
   gSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, gTap, 0);
   CFRunLoopAddSource(CFRunLoopGetMain(), gSource, kCFRunLoopCommonModes);
   CGEventTapEnable(gTap, true);
