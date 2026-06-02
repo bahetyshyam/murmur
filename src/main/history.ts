@@ -98,7 +98,9 @@ interface TranscriptRow {
 }
 
 export function recentTranscripts(limit = 200): Transcript[] {
-  const rows = getDb()
+  const d = getDb()
+  if (!d) return []
+  const rows = d
     .prepare('SELECT id, ts, text, model, duration_s, pasted, error FROM transcripts ORDER BY ts DESC LIMIT ?')
     .all(limit) as TranscriptRow[]
   return rows.map((r) => ({
@@ -113,7 +115,11 @@ export function recentTranscripts(limit = 200): Transcript[] {
 }
 
 export function deleteTranscript(id: number): void {
-  getDb().prepare('DELETE FROM transcripts WHERE id = ?').run(id)
+  try {
+    getDb()?.prepare('DELETE FROM transcripts WHERE id = ?').run(id)
+  } catch (e) {
+    console.error('[history] delete failed:', e)
+  }
 }
 
 export interface UsageRow {
@@ -123,7 +129,9 @@ export interface UsageRow {
 }
 
 export function usageByModel(): UsageRow[] {
-  const rows = getDb()
+  const d = getDb()
+  if (!d) return []
+  const rows = d
     .prepare('SELECT model, COUNT(*) AS count, COALESCE(SUM(duration_s), 0) AS total FROM transcripts GROUP BY model')
     .all() as Array<{ model: string; count: number; total: number }>
   return rows.map((r) => ({ model: r.model, count: r.count, totalSeconds: r.total }))
