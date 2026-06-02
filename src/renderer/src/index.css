@@ -89,3 +89,47 @@ input[type='password'] {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.tabs button {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  border-radius: 7px;
+  opacity: 0.6;
+}
+.tabs button.on {
+  background: rgba(128, 128, 128, 0.14);
+  opacity: 1;
+  font-weight: 600;
+}
+
+.list { display: flex; flex-direction: column; gap: 10px; }
+.list-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(128, 128, 128, 0.07);
+}
+.list-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.badge {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: rgba(128, 128, 128, 0.18);
+  font-family: ui-monospace, monospace;
+}
+.del { margin-left: auto; border: none; background: transparent; opacity: 0.4; cursor: pointer; }
+.del:hover { opacity: 1; color: #d9544f; }
+
+.usage-total { font-size: 15px; padding: 6px 0; }
+.usage { width: 100%; border-collapse: collapse; font-size: 12px; }
+.usage th, .usage td { text-align: left; padding: 5px 8px; border-bottom: 1px solid rgba(128,128,128,0.12); }
+.usage th { font-weight: 600; opacity: 0.6; }
+.usage td:nth-child(n+2), .usage th:nth-child(n+2) { text-align: right; font-variant-numeric: tabular-nums; }

@@ -7,6 +7,15 @@ import { setKey, clearKey, hasKey, getKey } from './keyStore'
 import { transcribe, makeError, type TranscribeOutcome } from './transcribe'
 import { startHotkey, stopHotkey, promptAccessibility, isHotkeyInstalled, HOTKEY_KEYCODES } from './hotkey'
 import { pasteText } from './paste'
+import {
+  appendTranscript,
+  markPasted,
+  pruneHistory,
+  recentTranscripts,
+  deleteTranscript,
+  usageByModel,
+  estimatedCost,
+} from './history'
 
 // Phase A — the menubar shell: a dock-less accessory app whose only persistent
 // presence is the tray. Mirrors the Swift app's MenuBarController + AppDelegate
@@ -49,8 +58,8 @@ function buildMenu(): Menu {
           { label: 'Grant Accessibility Access…', click: () => promptAccessibility() } as const,
         ]),
     { type: 'separator' },
-    { label: 'History…', click: () => { /* Phase F */ } },
-    { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => showSettings() },
+    { label: 'History…', click: () => showSettings('history') },
+    { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => showSettings('main') },
     { label: 'Permissions Help…', click: () => { /* Phase H */ } },
     { label: 'Check for Updates…', click: () => { /* Phase I */ } },
     { type: 'separator' },
@@ -72,17 +81,18 @@ export function setState(next: AppState, errorMessage = ''): void {
   refreshTray()
 }
 
-function showSettings(): void {
+function showSettings(tab = 'main'): void {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send('ui:set-tab', tab)
     settingsWindow.show()
     settingsWindow.focus()
     return
   }
   settingsWindow = new BrowserWindow({
-    width: 520,
-    height: 420,
+    width: 560,
+    height: 460,
     resizable: true,
-    title: 'Murmur Settings',
+    title: 'Murmur',
     show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -91,6 +101,7 @@ function showSettings(): void {
     },
   })
   settingsWindow.on('ready-to-show', () => settingsWindow?.show())
+  settingsWindow.webContents.on('did-finish-load', () => settingsWindow?.webContents.send('ui:set-tab', tab))
   settingsWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
     return { action: 'deny' }
@@ -134,6 +145,13 @@ ipcMain.on('rec:level', (_e, _level: number) => {
   // Phase G: forward to the HUD overlay window.
 })
 
+// History + usage (SQLite).
+ipcMain.handle('history:recent', (_e, limit?: number) => recentTranscripts(limit ?? 200))
+ipcMain.handle('history:delete', (_e, id: number) => deleteTranscript(id))
+ipcMain.handle('history:usage', () =>
+  usageByModel().map((r) => ({ ...r, cost: estimatedCost(r) })),
+)
+
 ipcMain.handle(
   'transcribe',
   async (
@@ -157,6 +175,14 @@ app.whenReady().then(() => {
 
   allowMediaPermissions()
   createRecorderHost()
+
+  // Prune old history on launch (parity with the Swift app).
+  try {
+    const deleted = pruneHistory(DEFAULTS.retentionDays)
+    if (deleted > 0) console.log(`[history] pruned ${deleted} transcripts older than ${DEFAULTS.retentionDays}d`)
+  } catch (e) {
+    console.error('[history] prune failed:', e)
+  }
 
   tray = new Tray(trayImage('idle'))
   refreshTray()
@@ -182,7 +208,7 @@ app.whenReady().then(() => {
 
 // --- Hidden capture host + the record→transcribe→paste pipeline -------------
 // Defaults until Settings persistence lands (Phase H).
-const DEFAULTS = { model: 'gpt-4o-transcribe', deviceId: '', pasteAtCursor: true }
+const DEFAULTS = { model: 'gpt-4o-transcribe', deviceId: '', pasteAtCursor: true, retentionDays: 30 }
 
 interface RecResult { ok: boolean; wav?: ArrayBuffer; durationS?: number; peakLevel?: number; error?: string }
 interface StartAck { ok: boolean; error?: string }
@@ -319,16 +345,25 @@ async function onHotkeyToggle(): Promise<void> {
     }
     const outcome = await transcribe({ apiKey, wav: rec.wav, model: DEFAULTS.model })
     if (!outcome.ok) {
+      // Record the failure (recoverable from History) then surface it.
+      appendTranscript('', DEFAULTS.model, rec.durationS ?? 0, outcome.error.description)
       flashError(outcome.error.userMessage)
       return
     }
+    // Persist BEFORE pasting (Swift AppModel order) so the text is recoverable
+    // even if paste fails.
+    const rowId = appendTranscript(outcome.text, DEFAULTS.model, rec.durationS ?? 0)
     if (outcome.text && DEFAULTS.pasteAtCursor) {
-      if (!pasteText(outcome.text)) {
+      if (pasteText(outcome.text)) {
+        markPasted(rowId)
+        setState('idle')
+      } else {
         flashError('Paste failed — text is on the clipboard.')
-        return
       }
+    } else {
+      markPasted(rowId)
+      setState('idle')
     }
-    setState('idle')
   } finally {
     toggleBusy = false
   }
