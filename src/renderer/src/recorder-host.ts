@@ -9,7 +9,7 @@ interface RecHostApi {
   sendReady(): void
   sendStarted(payload: { ok: boolean; error?: string }): void
   sendLevel(level: number): void
-  sendResult(payload: { ok: boolean; wav?: ArrayBuffer; durationS?: number; error?: string }): void
+  sendResult(payload: { ok: boolean; wav?: ArrayBuffer; durationS?: number; peakLevel?: number; error?: string }): void
 }
 
 declare global {
@@ -55,7 +55,7 @@ window.recHost.onStop(async () => {
   active = false
   try {
     const r = await recorder.stop(300)
-    window.recHost.sendResult({ ok: true, wav: r.wav, durationS: r.durationS })
+    window.recHost.sendResult({ ok: true, wav: r.wav, durationS: r.durationS, peakLevel: r.peakLevel })
   } catch (e) {
     window.recHost.sendResult({ ok: false, error: String(e) })
   }

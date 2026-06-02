@@ -184,8 +184,15 @@ app.whenReady().then(() => {
 // Defaults until Settings persistence lands (Phase H).
 const DEFAULTS = { model: 'gpt-4o-transcribe', deviceId: '', pasteAtCursor: true }
 
-interface RecResult { ok: boolean; wav?: ArrayBuffer; durationS?: number; error?: string }
+interface RecResult { ok: boolean; wav?: ArrayBuffer; durationS?: number; peakLevel?: number; error?: string }
 interface StartAck { ok: boolean; error?: string }
+
+// "No speech" gate: gpt-4o-transcribe / Whisper hallucinate phrases ("Thank
+// you", "はい", subtitle credits…) when fed silence. If the recording was too
+// short or never rose above background level, skip the API call entirely
+// (saves cost + avoids pasting garbage). Tunable.
+const MIN_SPEECH_DURATION_S = 0.35
+const SPEECH_PEAK_THRESHOLD = 0.05 // on the ×3-boosted smoothed level
 
 let hostWin: BrowserWindow | null = null
 let hostReady = false
@@ -297,6 +304,12 @@ async function onHotkeyToggle(): Promise<void> {
     )
     if (!rec.ok || !rec.wav) {
       flashError(rec.error ?? 'Recording failed')
+      return
+    }
+    // Skip silence / accidental taps before spending an API call.
+    if ((rec.durationS ?? 0) < MIN_SPEECH_DURATION_S || (rec.peakLevel ?? 0) < SPEECH_PEAK_THRESHOLD) {
+      console.log('[pipeline] no speech (dur=%ss peak=%s) — skipping transcription', rec.durationS, rec.peakLevel)
+      setState('idle')
       return
     }
     const apiKey = await getKey()

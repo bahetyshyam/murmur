@@ -4,6 +4,7 @@ export interface RecResult {
   ok: boolean
   wav?: ArrayBuffer
   durationS?: number
+  peakLevel?: number
   error?: string
 }
 

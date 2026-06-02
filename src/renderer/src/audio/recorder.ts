@@ -16,6 +16,9 @@ export interface RecordResult {
   durationS: number
   sampleRate: number
   frames: number
+  /** Peak smoothed input level (0…1) seen during the session — used to detect
+   *  "no speech" so we don't transcribe silence (which the model hallucinates). */
+  peakLevel: number
 }
 
 /** List audio input devices. Labels are only populated after mic permission
@@ -37,6 +40,7 @@ export class AudioRecorder {
   private totalFrames = 0
   private nativeRate = 48000
   private smoothed = 0
+  private peak = 0
   private lastEmit = 0
   private recording = false
   private onLevel?: (level: number) => void
@@ -57,6 +61,7 @@ export class AudioRecorder {
     this.chunks = []
     this.totalFrames = 0
     this.smoothed = 0
+    this.peak = 0
     this.lastEmit = 0
 
     // Raw capture: disable browser DSP so we get the unprocessed mic signal
@@ -115,6 +120,7 @@ export class AudioRecorder {
     const rms = Math.sqrt(sumSq / Math.max(block.length, 1))
     const boosted = Math.min(Math.max(rms * 3, 0), 1)
     this.smoothed = Math.max(boosted, this.smoothed * 0.85)
+    if (this.smoothed > this.peak) this.peak = this.smoothed
 
     const now = performance.now()
     if (now - this.lastEmit >= 1000 / 30) {
@@ -154,7 +160,7 @@ export class AudioRecorder {
     await this.ctx?.close()
     this.ctx = null
     this.chunks = []
-    return { wav, durationS, sampleRate: TARGET_RATE, frames: int16.length }
+    return { wav, durationS, sampleRate: TARGET_RATE, frames: int16.length, peakLevel: this.peak }
   }
 
   /** Resample native-rate Float32 → 16 kHz mono via the browser's high-quality
