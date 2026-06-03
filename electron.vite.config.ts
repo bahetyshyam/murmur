@@ -27,6 +27,7 @@ export default defineConfig({
         input: {
           index: resolve(__dirname, 'src/preload/index.ts'),
           'recorder-host': resolve(__dirname, 'src/preload/recorder-host.ts'),
+          hud: resolve(__dirname, 'src/preload/hud.ts'),
         },
       },
     },
@@ -38,6 +39,7 @@ export default defineConfig({
         input: {
           settings: resolve(__dirname, 'src/renderer/index.html'),
           'recorder-host': resolve(__dirname, 'src/renderer/recorder-host.html'),
+          hud: resolve(__dirname, 'src/renderer/hud.html'),
         },
       },
     },

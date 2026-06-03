@@ -1,4 +1,4 @@
-import { app, Tray, Menu, BrowserWindow, nativeImage, shell, session, ipcMain } from 'electron'
+import { app, Tray, Menu, BrowserWindow, nativeImage, shell, session, ipcMain, screen } from 'electron'
 import { join } from 'path'
 import { writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
@@ -31,6 +31,7 @@ type AppState = 'idle' | 'recording' | 'transcribing' | 'error'
 
 let tray: Tray | null = null
 let settingsWindow: BrowserWindow | null = null
+let hudWin: BrowserWindow | null = null
 let state: AppState = 'idle'
 let lastError = ''
 
@@ -97,11 +98,12 @@ function refreshTray(): void {
   tray.setContextMenu(menu)
 }
 
-/** Drives the tray glyph + state row. Other subsystems call this in later phases. */
+/** Drives the tray glyph + state row + HUD. Other subsystems call this. */
 export function setState(next: AppState, errorMessage = ''): void {
   state = next
   lastError = errorMessage
   refreshTray()
+  syncHud()
 }
 
 function showSettings(tab = 'main'): void {
@@ -136,6 +138,69 @@ function showSettings(tab = 'main'): void {
   }
 }
 
+// --- Recording HUD overlay (Phase G) ---------------------------------------
+// A transparent, frameless, click-through, always-on-top, all-spaces window
+// that floats a small pill near the bottom-center: live level bars while
+// recording, a spinner while transcribing. It never steals focus.
+const HUD_W = 220
+const HUD_H = 72
+
+function createHud(): void {
+  hudWin = new BrowserWindow({
+    width: HUD_W,
+    height: HUD_H,
+    show: false,
+    frame: false,
+    transparent: true,
+    hasShadow: false,
+    resizable: false,
+    movable: false,
+    focusable: false, // never take keyboard focus
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    fullscreenable: false,
+    webPreferences: {
+      preload: join(__dirname, '../preload/hud.js'),
+      contextIsolation: true,
+      sandbox: true,
+    },
+  })
+  hudWin.setIgnoreMouseEvents(true) // click-through: pointer events pass through
+  hudWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  hudWin.setAlwaysOnTop(true, 'screen-saver') // float above fullscreen apps too
+  // Re-assert the current state once the renderer is loaded (covers a state
+  // change that raced the initial load).
+  hudWin.webContents.on('did-finish-load', () => hudWin?.webContents.send('hud:state', state))
+  if (RENDERER_URL) {
+    hudWin.loadURL(`${RENDERER_URL}/hud.html`)
+  } else {
+    hudWin.loadFile(join(__dirname, '../renderer/hud.html'))
+  }
+}
+
+function positionHud(): void {
+  if (!hudWin || hudWin.isDestroyed()) return
+  // Bottom-center of the display under the cursor (so it appears where you're
+  // working on a multi-display setup), ~96px above the work-area bottom.
+  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  const { x, y, width, height } = display.workArea
+  hudWin.setPosition(Math.round(x + (width - HUD_W) / 2), Math.round(y + height - HUD_H - 96))
+}
+
+// Show the HUD while recording/transcribing, hide it otherwise. Uses
+// showInactive() so it never steals focus from the app you're dictating into.
+function syncHud(): void {
+  if (!hudWin || hudWin.isDestroyed()) return
+  hudWin.webContents.send('hud:state', state)
+  const shouldShow = state === 'recording' || state === 'transcribing'
+  if (shouldShow) {
+    positionHud()
+    if (!hudWin.isVisible()) hudWin.showInactive()
+  } else if (hudWin.isVisible()) {
+    hudWin.hide()
+  }
+}
+
 // Allow microphone capture (getUserMedia) from our renderer. The macOS TCC
 // prompt still fires on first use; the bundle's NSMicrophoneUsageDescription
 // (set in electron-builder.yml) is what lets that prompt appear.
@@ -163,9 +228,9 @@ ipcMain.handle('key:set', (_e, plain: string) => setKey(plain))
 ipcMain.handle('key:clear', () => clearKey())
 ipcMain.handle('key:status', () => hasKey())
 
-// Live mic level from the capture host (drives the HUD in Phase G).
-ipcMain.on('rec:level', (_e, _level: number) => {
-  // Phase G: forward to the HUD overlay window.
+// Live mic level from the capture host → drives the HUD level bars.
+ipcMain.on('rec:level', (_e, level: number) => {
+  if (hudWin && !hudWin.isDestroyed()) hudWin.webContents.send('hud:level', level)
 })
 
 // History + usage (SQLite).
@@ -209,6 +274,7 @@ app.whenReady().then(() => {
 
   allowMediaPermissions()
   createRecorderHost()
+  createHud()
 
   // Prune old history on launch (parity with the Swift app).
   try {
