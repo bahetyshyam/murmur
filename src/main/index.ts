@@ -2,7 +2,12 @@ import { app, Tray, Menu, BrowserWindow, nativeImage, shell, session, ipcMain } 
 import { join } from 'path'
 import { writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
-import { TRAY_ICON_IDLE, TRAY_ICON_RECORDING } from './trayIcon'
+import {
+  TRAY_ICON_IDLE_1X,
+  TRAY_ICON_IDLE_2X,
+  TRAY_ICON_RECORDING_1X,
+  TRAY_ICON_RECORDING_2X,
+} from './trayIcon'
 import { setKey, clearKey, hasKey, getKey } from './keyStore'
 import { transcribe, makeError, type TranscribeOutcome } from './transcribe'
 import { startHotkey, stopHotkey, promptAccessibility, isHotkeyInstalled, HOTKEY_KEYCODES } from './hotkey'
@@ -31,9 +36,23 @@ let lastError = ''
 
 const RENDERER_URL = process.env['ELECTRON_RENDERER_URL']
 
+// Single instance. Each Electron instance creates its OWN tray; stale/duplicate
+// instances pile up and wedge the menu-bar slot so no icon appears. Acquire the
+// lock as early as possible — a second launch just exits.
+const hasInstanceLock = app.requestSingleInstanceLock()
+if (!hasInstanceLock) app.quit()
+
 function trayImage(s: AppState): Electron.NativeImage {
-  const url = s === 'recording' ? TRAY_ICON_RECORDING : TRAY_ICON_IDLE
-  const img = nativeImage.createFromDataURL(url).resize({ width: 18, height: 18 })
+  // Build a MULTI-REPRESENTATION template image: an 18px @1x rep AND a 36px @2x
+  // rep. On HiDPI (2x) menu bars macOS requests the @2x backing pixels; with a
+  // single-scale image (the old resize() path) there is none, so the status
+  // item's content view lays out with HEIGHT 0 and the icon is invisible. Adding
+  // both reps gives macOS real backing at either scale so it always draws.
+  const oneX = s === 'recording' ? TRAY_ICON_RECORDING_1X : TRAY_ICON_IDLE_1X
+  const twoX = s === 'recording' ? TRAY_ICON_RECORDING_2X : TRAY_ICON_IDLE_2X
+  const img = nativeImage.createEmpty()
+  img.addRepresentation({ scaleFactor: 1, dataURL: oneX })
+  img.addRepresentation({ scaleFactor: 2, dataURL: twoX })
   img.setTemplateImage(true) // auto-tint for light/dark menubars
   return img
 }
@@ -68,10 +87,14 @@ function buildMenu(): Menu {
 }
 
 function refreshTray(): void {
+  const menu = buildMenu()
+  // Mirror the menu onto the Dock icon (right-click), so the same actions work
+  // even when Tahoe hides the tray. Kept in sync with state on every refresh.
+  app.dock?.setMenu(menu)
   if (!tray) return
   tray.setImage(trayImage(state))
   tray.setToolTip('Murmur')
-  tray.setContextMenu(buildMenu())
+  tray.setContextMenu(menu)
 }
 
 /** Drives the tray glyph + state row. Other subsystems call this in later phases. */
@@ -166,12 +189,23 @@ ipcMain.handle(
 )
 
 app.whenReady().then(() => {
-  // Dock-less accessory app (Swift LSUIElement parity). NOTE: the tray only
-  // renders in a packaged Murmur.app bundle — dev-mode `npx electron .` (the
-  // generic com.github.Electron) does not get a menu-bar slot. Test the tray
-  // via the packaged app (npm run pack).
-  app.dock?.hide()
-  if (process.platform === 'darwin') app.setActivationPolicy('accessory')
+  if (!hasInstanceLock) return
+
+  // Murmur shows a DOCK icon (clicking it opens Settings — see the 'activate'
+  // handler). The Dock is the reliable entry point: macOS 26 "Tahoe" has a known
+  // OS bug that hides third-party menu-bar items (affects many apps, not just
+  // us), so we no longer depend on the tray alone. The tray is still created for
+  // platforms / users where the menu bar renders it.
+  if (process.platform === 'darwin') {
+    app.setActivationPolicy('regular')
+    app.dock?.show()
+  }
+
+  // Create the tray before any BrowserWindow (creating a window first can wedge
+  // the tray's menu-bar slot on macOS). The icon ships @1x + @2x reps so it draws
+  // on HiDPI menu bars; on Tahoe macOS may still hide it — the Dock covers that.
+  tray = new Tray(trayImage('idle'))
+  refreshTray()
 
   allowMediaPermissions()
   createRecorderHost()
@@ -183,9 +217,6 @@ app.whenReady().then(() => {
   } catch (e) {
     console.error('[history] prune failed:', e)
   }
-
-  tray = new Tray(trayImage('idle'))
-  refreshTray()
 
   // Phase D: global modifier hotkey (Right Option). For now the toggle just
   // flips the tray glyph idle↔recording as a visible test; the full
@@ -369,6 +400,14 @@ async function onHotkeyToggle(): Promise<void> {
   }
 }
 
-// Menubar app: don't quit when the last window closes.
+// Clicking the Dock icon (or otherwise activating the app) opens Settings — the
+// reliable way to reach the UI given Tahoe's tray flakiness. Guarded on isReady
+// so a launch-time activate can't run before the app is initialized.
+app.on('activate', () => {
+  if (app.isReady()) showSettings('main')
+})
+
+// Background app: don't quit when the last window closes (the Dock icon + tray
+// keep it running; reopen Settings via the Dock).
 app.on('window-all-closed', () => {})
 app.on('will-quit', () => stopHotkey())

@@ -17,6 +17,8 @@ mac:
   # hardened-runtime signing is wired up in Phase J.
   identity: null
   extendInfo:
-    LSUIElement: 1
+    # No LSUIElement: Murmur shows a Dock icon (clicking it opens Settings). The
+    # menu-bar tray is kept too, but macOS 26 "Tahoe" has a known bug that hides
+    # third-party menu-bar items, so the Dock is the reliable entry point.
     NSMicrophoneUsageDescription: Murmur records audio while you hold the hotkey so it can be transcribed.
     LSMinimumSystemVersion: "14.0"
