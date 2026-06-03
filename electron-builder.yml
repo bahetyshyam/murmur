@@ -16,6 +16,9 @@ publish:
   provider: github
   owner: bahetyshyam
   repo: murmur
+  # Publish straight to a live (non-draft) Release on every tag — no manual
+  # "Publish" step. (electron-builder defaults to a draft.)
+  releaseType: release
 mac:
   category: public.app-category.productivity
   icon: build/icon.icns

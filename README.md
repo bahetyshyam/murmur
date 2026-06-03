@@ -1,11 +1,11 @@
 # Murmur
 
-**Tap-to-talk dictation for macOS.** Press a hotkey to start recording, press it again to stop — your words appear at the cursor in whatever app you're using. Powered by OpenAI's transcription API using your own key.
+**Tap-to-talk dictation for macOS.** Tap a key to start recording, tap it again to stop — your words appear at the cursor in whatever app you're using. Powered by OpenAI's transcription API using your own key.
 
-- Menubar app, stays out of the way
-- Default hotkey: **`⌥\`` (Option + Backtick)** — tap once to start, tap again to stop
+- Lives in the **menu bar and Dock**, stays out of the way
+- Default hotkey: **tap Right Option (⌥)** — tap once to start, tap again to stop (configurable in Settings)
 - API key lives in the macOS Keychain — never leaves your Mac except to OpenAI
-- macOS 14 Sonoma or newer, Apple Silicon or Intel
+- macOS 14+ (Sonoma or newer), Apple Silicon
 
 ---
 
@@ -13,174 +13,125 @@
 
 ### 1. Download
 
-**→ [Download the latest Murmur.zip](../../releases/latest)**
+**→ [Download the latest release](../../releases/latest)**
 
-(On the Releases page, grab the file named `Murmur-<version>.zip` under *Assets*.)
+On the Releases page, under *Assets*, grab **`Murmur-<version>-arm64.dmg`**.
 
-### 2. Unzip and move to Applications
+### 2. Drag to Applications
 
-Double-click the zip. You'll get `Murmur.app`. Drag it into your **Applications** folder.
+Open the `.dmg` and drag **Murmur** onto the **Applications** shortcut.
 
 ### 3. First launch — get past the "could not verify" warning
 
-The first time you open Murmur, macOS will refuse and say *"Apple could not verify 'Murmur' is free of malware…"* with only **Move to Trash** / **Done** buttons. This is expected. Pick the steps that match your macOS version:
-
-#### macOS 15 Sequoia (most users today)
-
-1. Double-click `Murmur.app`. You'll get the "could not verify" dialog — click **Done**.
-2. Open **System Settings → Privacy & Security**.
-3. Scroll to the bottom. You'll see a banner: *"Murmur" was blocked to protect your Mac.* Click **Open Anyway**.
-4. Re-launch Murmur. This time the dialog has an **Open** button — click it.
-
-> The "Open Anyway" banner only appears for about an hour after you were blocked, so do this right after step 1.
-
-#### macOS 14 Sonoma and earlier
-
-In Applications, **right-click `Murmur.app` → Open**. The warning will show an **Open** button — click it.
+Murmur is self-signed (not notarized), so the first launch needs one extra step. In **Applications**, **right-click `Murmur` → Open**, then click **Open** in the dialog.
 
 <details>
-<summary>Prefer the Terminal? One command, works on every macOS version.</summary>
+<summary>Prefer the Terminal? One command.</summary>
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/Murmur.app
 ```
 
-This removes the "downloaded from the internet" flag that triggers Gatekeeper. After running it, `Murmur.app` opens normally with a double-click. It's the same trick Homebrew uses for ad-hoc signed casks.
+Removes the "downloaded from the internet" flag that triggers Gatekeeper, after which `Murmur` opens with a normal double-click.
 </details>
 
-<details>
-<summary>Why is any of this necessary?</summary>
+### 4. Set up
 
-Murmur is a free personal project and isn't signed with a paid Apple Developer certificate ($99/yr) or notarized by Apple. You're telling macOS *"yes, I trust this developer"* — once. After you've opened it successfully, double-click works like any other app on that Mac.
-</details>
+On first launch Murmur opens a short **setup wizard**: paste your OpenAI API key, grant **Microphone** and **Accessibility** access (both required — for hearing you and for the global hotkey + paste), and pick your hotkey. You can re-run it anytime from the Dock/menu-bar menu → **Set up Murmur…**.
 
-### 4. Grant permissions when prompted
-
-macOS will ask for two permissions the first time you use the app. Both are required:
-
-- **Microphone** — so Murmur can hear you.
-- **Accessibility** — so Murmur can detect the hotkey and paste text into other apps.
-
-If you miss the prompts, open **System Settings → Privacy & Security** and enable Murmur under each section.
-
-### 5. Paste your OpenAI API key
-
-Click the microphone icon in your menubar → **Settings…** → paste your OpenAI API key.
-
-Don't have one? Get it at [platform.openai.com/api-keys](https://platform.openai.com/api-keys). (A full hour of dictation costs under a dollar on `gpt-4o-transcribe`.)
+Don't have a key? Get one at [platform.openai.com/api-keys](https://platform.openai.com/api-keys). (A full hour of dictation costs under a dollar on `gpt-4o-transcribe`.)
 
 ---
 
 ## How to use it
 
 1. Click into any text field, anywhere on your Mac.
-2. Press **`⌥\`` (Option + Backtick)** to start recording. Speak.
-3. Press **`⌥\`` again** to stop. Your transcribed text pastes at the cursor within a second or two.
+2. **Tap Right Option (⌥)** to start recording. Speak.
+3. **Tap it again** to stop. Your transcribed text pastes at the cursor within a second or two.
 
-That's it. The menubar icon tells you what's happening:
+A small HUD pill appears near the bottom of the screen while you're recording (live level) and transcribing (spinner). The menu-bar glyph mirrors the state: open ring (idle), filled dot (recording), waveform (transcribing).
 
-| Glyph | State |
-|-------|-------|
-| Open ring | Idle — ready for you |
-| Filled dot | Recording your voice |
-| Waveform | Sending to OpenAI |
-| ⚠️ Yellow triangle | Something went wrong — open the menu to see the error |
-
-If the hotkey isn't working, the menu will show **"Hotkey disabled — grant Accessibility"** with a one-click shortcut to the right System Settings pane.
+> **Reaching the app:** click the **Murmur Dock icon** to open Settings (right-click it for History, Permissions Help, etc.). On macOS 26 "Tahoe" the menu-bar icon may be hidden by a known OS bug that drops third-party menu-bar items — the **Dock icon is the reliable entry point**.
 
 ---
 
 ## Updating
 
-**Murmur updates itself.** It checks for new versions in the background and installs them quietly — the next time you launch, you're on the latest version. Nothing to download, no dragging into Applications, no re-clearing Gatekeeper.
+**Murmur updates itself** via GitHub Releases — it checks in the background and on launch, and prompts you to restart when a new version is ready.
 
-- Want to check right now? Menubar → **Check for Updates…**
-- Prefer to stay put? Settings → General → turn off **Automatically check for updates**. (You can still update manually from the menu whenever you like.)
+- Check right now: Dock/menu-bar menu → **Check for Updates…**
+- Stay put: Settings → General → turn off **Automatically check for updates**.
 
-Your API key and settings are preserved across updates (they live in the Keychain and `~/Library/Application Support/Murmur/`), and so are your Microphone/Accessibility grants — Murmur ships with a stable code signature, so macOS keeps trusting it build to build.
+Your API key, settings, and history are preserved across updates (Keychain + `~/Library/Application Support/Murmur/`).
 
-> **One-time note for the switch-over:** the auto-updater is itself a new feature, so the *first* update onto an auto-updating build is a manual download (the version you have now doesn't know how to update). Every version after that is automatic.
+> Builds are **self-signed**. If a future release is signed with a different identity than the one you installed, macOS may ask you to re-grant **Accessibility** once after the update. See [`RELEASING.md`](RELEASING.md) for how releases keep that grant stable.
 
 ---
 
 ## Troubleshooting
 
 **The hotkey doesn't do anything.**
-System Settings → Privacy & Security → **Accessibility**. Make sure Murmur is listed and toggled **on**. You can also open the menubar menu → **Permissions Help…** for a guided walkthrough, or click the **"Grant Accessibility Access…"** row that appears in the menu when the hotkey is disabled.
+System Settings → Privacy & Security → **Accessibility** — make sure Murmur is listed and toggled **on**. Or use the Dock/menu-bar menu → **Permissions Help…** for a guided walkthrough.
 
-**"Paste failed" error.**
-Same place — Accessibility. Murmur needs it to simulate ⌘V. Toggle off and on if it was already enabled.
+**"Paste failed — text is on the clipboard."**
+Same place — Accessibility (Murmur needs it to simulate ⌘V). The text is safely on your clipboard; just paste it. Toggle Accessibility off/on if it was already enabled.
 
-**"invalid API key".**
-Menubar → Settings → API Key → paste again. Check the key is active at [platform.openai.com](https://platform.openai.com/api-keys).
+**"API key invalid — open Settings."**
+Dock icon → Settings → General → re-paste the key. Confirm it's active at [platform.openai.com](https://platform.openai.com/api-keys).
 
 **After updating, the hotkey stopped working.**
-macOS ties Accessibility permission to the app's code signature, which changes with each build. In System Settings → Accessibility, remove the old Murmur entry (`−` button), add the new one (`+`), toggle on. Or run:
+macOS ties Accessibility to the app's signature. In System Settings → Accessibility, remove the old Murmur entry (`−`), add the new one (`+`), toggle on. Or:
 ```bash
-tccutil reset Accessibility com.local.murmur
+tccutil reset Accessibility com.murmur.app
 ```
 …and re-grant on next launch.
 
-**Menubar icon doesn't appear.**
-Make sure you launched `Murmur.app` (not a bare binary). If it still doesn't show up, try `killall Murmur` and relaunch.
-
-**Very short clips transcribe to empty.**
-`gpt-4o-transcribe` sometimes returns nothing for <1s clips. Speak for at least a second.
+**Very short clips transcribe to empty / nonsense.**
+`gpt-4o-transcribe` can hallucinate on silence or <1s clips. Speak for at least a second; Murmur also skips clips that never rise above background level.
 
 ---
 
 ## Settings
 
-Menubar → **Settings…** (or ⌘,):
+Click the Dock icon (or menu bar → **Settings…**, ⌘,):
 
-- **General** — model, hotkey, chime/HUD/paste toggles, automatic updates
-- **API Key** — paste or clear the OpenAI key
-- **Advanced** — biasing prompt, language, toggle-debounce, sample rate, history retention
-
-**History** — menubar → **History…** — every transcript you've ever made, searchable, one-click copy.
-Stored in `~/Library/Application Support/Murmur/history.sqlite3`.
+- **General** — OpenAI key, model (`gpt-4o-transcribe` / `gpt-4o-mini-transcribe` / `whisper-1`), microphone, record-test, hotkey, paste-at-cursor, automatic updates.
+- **History** — every transcript, with one-click copy and delete. Stored in `~/Library/Application Support/Murmur/history.sqlite3`.
+- **Usage** — estimated spend per model (audio minutes × OpenAI's per-minute pricing).
 
 ---
 
 ## Build from source
 
-For developers who want to build locally. Requires macOS 14+ and Xcode Command Line Tools (`xcode-select --install`).
+Requires macOS 14+, Node 20+, and Xcode Command Line Tools (`xcode-select --install`) for the native addon.
 
 ```bash
-git clone <this repo>
-cd chatgpt-voice-to-text
-./scripts/build_release.sh
-open dist/Murmur.app
+git clone https://github.com/bahetyshyam/murmur
+cd murmur
+npm install
+npm run pack          # build native modules + bundle + package an unsigned .app under release/
+open release/mac-arm64/Murmur.app
 ```
 
-Produces `dist/Murmur.app`, `dist/Murmur-<version>.dmg`, and `dist/appcast.xml` (the Sparkle update feed). The build embeds and re-signs `Sparkle.framework` and EdDSA-signs the appcast — see the header of `scripts/build_release.sh` for the one-time key setup.
+During development the renderer/HMR runs with `npm run dev`, but the tray, Dock, global hotkey, and native paste **only work in the packaged app** (`npm run pack`) — test those there.
 
-During development:
-
-```bash
-swift build                 # debug build
-swift run Murmur            # run binary directly (no bundle)
-swift run MurmurTests       # test harness
-```
+Stack: **Electron + React + TypeScript** (electron-vite + electron-builder), a native N-API **CGEventTap** addon for the global modifier hotkey + synthetic paste, `better-sqlite3` for history, and `safeStorage` (Keychain) for the API key.
 
 ### Cutting a release
 
-Releases are built by GitHub Actions (`.github/workflows/release.yml`):
-
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+# bump "version" in package.json, then:
+git tag v2.0.1
+git push origin v2.0.1
 ```
 
-The workflow builds `Murmur.app` on a `macos-14` runner, packages it as a signed `.dmg`, generates the EdDSA-signed `appcast.xml`, and attaches **both** to a new GitHub Release. Sparkle reads the appcast from the stable `releases/latest/download/appcast.xml` URL, so publishing a release is all it takes for existing installs to pick up the update. (CI needs the `SPARKLE_ED_PRIVATE_KEY` secret — see `.github/workflows/release.yml`.) You can also trigger a manual build from the **Actions** tab (uploads the artifacts without cutting a release).
+GitHub Actions (`.github/workflows/release.yml`) builds on a `macos-14` runner and runs `electron-builder --mac --publish`, attaching the `.dmg`, `.zip`, and `latest-mac.yml` (the electron-updater feed) to a GitHub Release. **electron-builder creates the release as a _draft_** — open it on the Releases page and click **Publish release** to make it live (and the new "Latest"). See [`RELEASING.md`](RELEASING.md) for the self-signed code-signing identity (the `MAC_CSC_*` secrets) that keeps Accessibility/microphone grants alive across updates.
 
 ---
 
 ## Why not notarized / on the App Store?
 
-Notarization needs a paid Apple Developer account ($99/yr). App Store distribution needs sandboxing, which blocks the global hotkey and paste behavior that make this app useful. Ad-hoc signing is the honest compromise for a personal tool.
-
-If you do have a Developer ID, swap `codesign --sign -` in `scripts/build_release.sh` for your identity, run `xcrun notarytool submit`, and `xcrun stapler staple`. Everything else stays the same.
+Notarization needs a paid Apple Developer account ($99/yr). App Store distribution requires sandboxing, which blocks the global hotkey and paste that make this app useful. Self-signed is the honest compromise for a personal tool.
 
 ---
 
