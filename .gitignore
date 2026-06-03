@@ -18,7 +18,10 @@ venv/
 __pycache__/
 *.py[cod]
 *.egg-info/
-build/
+build/*
+# …but track the electron-builder resources (CI needs them; can't rasterize SVG headlessly).
+!build/icon.icns
+!build/entitlements.mac.plist
 dist/
 .pytest_cache/
 .mypy_cache/

@@ -13,6 +13,7 @@ import { transcribe, makeError, type TranscribeOutcome } from './transcribe'
 import { startHotkey, stopHotkey, promptAccessibility, isHotkeyInstalled, HOTKEY_KEYCODES } from './hotkey'
 import { pasteText } from './paste'
 import { getConfig, setConfig, type MurmurConfig } from './config'
+import { checkForUpdatesBackground, checkForUpdatesInteractive } from './updater'
 import {
   appendTranscript,
   markPasted,
@@ -85,7 +86,7 @@ function buildMenu(): Menu {
     { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => showSettings('general') },
     { label: 'Permissions Help…', click: () => showPermissions() },
     { label: 'Set up Murmur…', click: () => showOnboarding() },
-    { label: 'Check for Updates…', click: () => { /* Phase I */ } },
+    { label: 'Check for Updates…', click: () => checkForUpdatesInteractive() },
     { type: 'separator' },
     { label: 'Quit Murmur', accelerator: 'CmdOrCtrl+Q', click: () => app.quit() },
   ])
@@ -375,6 +376,10 @@ app.whenReady().then(() => {
 
   // First run: show the onboarding wizard (the app is already a regular/Dock app).
   if (!getConfig().onboardingSeen) showOnboarding()
+
+  // Auto-update: check at launch and every 24h (honors the autoUpdate setting).
+  checkForUpdatesBackground()
+  setInterval(checkForUpdatesBackground, 24 * 60 * 60 * 1000)
 })
 
 // Install/reinstall the configured hotkey. Called at launch and whenever the

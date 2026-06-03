@@ -2,6 +2,7 @@ appId: com.murmur.app
 productName: Murmur
 directories:
   output: release
+  buildResources: build
 files:
   - out/**/*
   - package.json
@@ -9,16 +10,32 @@ files:
 # Native .node binaries can't be require'd from inside app.asar — unpack them.
 asarUnpack:
   - native/build/Release/*.node
+# Auto-update feed (electron-updater). Releases publish to GitHub; the generated
+# latest-mac.yml + the .zip are what the updater reads.
+publish:
+  provider: github
+  owner: bahetyshyam
+  repo: murmur
 mac:
   category: public.app-category.productivity
+  icon: build/icon.icns
   target:
-    - dir
-  # Skip signing for this local test build (ad-hoc). Proper self-signed +
-  # hardened-runtime signing is wired up in Phase J.
+    - dmg
+    - zip
+  # Ad-hoc for local --dir builds. For TCC-persistent SELF-SIGNED releases, point
+  # CSC_LINK / CSC_KEY_PASSWORD at a stable self-signed identity (see RELEASING.md)
+  # so the designated requirement — and thus Accessibility/mic grants — survive
+  # across updates. The identity MUST be identical on every release.
   identity: null
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  gatekeeperAssess: false
   extendInfo:
     # No LSUIElement: Murmur shows a Dock icon (clicking it opens Settings). The
     # menu-bar tray is kept too, but macOS 26 "Tahoe" has a known bug that hides
     # third-party menu-bar items, so the Dock is the reliable entry point.
     NSMicrophoneUsageDescription: Murmur records audio while you hold the hotkey so it can be transcribed.
     LSMinimumSystemVersion: "14.0"
+dmg:
+  title: ${productName} ${version}
