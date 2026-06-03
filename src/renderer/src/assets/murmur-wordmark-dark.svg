@@ -1,0 +1,8 @@
+<svg width="360" height="96" viewBox="0 0 360 96" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Murmur">
+  <g transform="translate(8,8)">
+    <circle cx="40" cy="40" r="37" stroke="#C2C8D2" stroke-width="2.4" opacity="0.18"></circle>
+    <circle cx="40" cy="40" r="27" stroke="#C2C8D2" stroke-width="3" opacity="0.42"></circle>
+    <circle cx="40" cy="40" r="10" fill="#2E6FE0"></circle>
+  </g>
+  <text x="100" y="62" font-family="&#39;Hanken Grotesk&#39;, sans-serif" font-size="50" font-weight="700" letter-spacing="-1.4" fill="#F2F4F7">Murmur</text>
+</svg>

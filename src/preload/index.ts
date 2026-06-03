@@ -23,6 +23,14 @@ export interface UsageRow {
   totalSeconds: number
   cost: number
 }
+export interface MurmurConfig {
+  model: string
+  deviceId: string
+  hotkey: string
+  pasteAtCursor: boolean
+  autoUpdate: boolean
+  retentionDays: number
+}
 
 // Typed, parameterized bridge — never raw ipcRenderer. The OpenAI key lives
 // only in main; the renderer can set/clear/check it but never read it back.
@@ -46,6 +54,12 @@ const api = {
     delete: (id: number): Promise<void> => ipcRenderer.invoke('history:delete', id),
     usage: (): Promise<UsageRow[]> => ipcRenderer.invoke('history:usage'),
   },
+  // Persisted settings (model, mic, hotkey, paste, auto-update, retention).
+  config: {
+    get: (): Promise<MurmurConfig> => ipcRenderer.invoke('config:get'),
+    set: (patch: Partial<MurmurConfig>): Promise<MurmurConfig> => ipcRenderer.invoke('config:set', patch),
+  },
+
   // Main asks the Settings window to switch tabs (e.g. tray → History…).
   onSetTab: (cb: (tab: string) => void): void => {
     ipcRenderer.on('ui:set-tab', (_e, tab: string) => cb(tab))

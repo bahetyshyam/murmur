@@ -1,0 +1,16 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Murmur app icon (arcs)">
+<defs>
+  <linearGradient id="ink" x1="120" y1="80" x2="940" y2="980" gradientUnits="userSpaceOnUse"><stop stop-color="#202A42"></stop><stop offset="0.5" stop-color="#141A2B"></stop><stop offset="1" stop-color="#0A0E18"></stop></linearGradient>
+  <radialGradient id="topglow" cx="0.5" cy="0.30" r="0.72"><stop offset="0" stop-color="#33457A" stop-opacity="0.55"></stop><stop offset="1" stop-color="#33457A" stop-opacity="0"></stop></radialGradient>
+  <radialGradient id="cglow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#7FB0FF" stop-opacity="0.8"></stop><stop offset="0.5" stop-color="#3F7EEA" stop-opacity="0.22"></stop><stop offset="1" stop-color="#2E6FE0" stop-opacity="0"></stop></radialGradient>
+  <linearGradient id="bar" x1="200" y1="320" x2="820" y2="700" gradientUnits="userSpaceOnUse"><stop stop-color="#9CC0FF"></stop><stop offset="0.5" stop-color="#4582EE"></stop><stop offset="1" stop-color="#2059C0"></stop></linearGradient>
+  <radialGradient id="dotfill" cx="0.42" cy="0.36" r="0.7"><stop offset="0" stop-color="#CFE0FF"></stop><stop offset="0.45" stop-color="#5C92F2"></stop><stop offset="1" stop-color="#2E6FE0"></stop></radialGradient>
+</defs>
+<rect width="1024" height="1024" rx="229" fill="url(#ink)"></rect>
+<rect width="1024" height="1024" rx="229" fill="url(#topglow)"></rect>
+<circle cx="512" cy="512" r="340" fill="url(#cglow)"></circle>
+<path d="M728.7 287.6 A 312 312 0 0 1 728.7 736.4" stroke="url(#bar)" stroke-width="58" stroke-linecap="round" fill="none"></path><path d="M295.3 287.6 A 312 312 0 0 0 295.3 736.4" stroke="url(#bar)" stroke-width="58" stroke-linecap="round" fill="none"></path>
+<path d="M645.7 352.7 A 208 208 0 0 1 645.7 671.3" stroke="url(#bar)" stroke-width="62" stroke-linecap="round" fill="none"></path><path d="M378.3 352.7 A 208 208 0 0 0 378.3 671.3" stroke="url(#bar)" stroke-width="62" stroke-linecap="round" fill="none"></path>
+<circle cx="512" cy="512" r="96" fill="url(#dotfill)"></circle>
+<circle cx="488" cy="488" r="26" fill="#EAF2FF" opacity="0.5"></circle>
+</svg>

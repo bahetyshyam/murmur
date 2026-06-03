@@ -12,6 +12,7 @@ import { setKey, clearKey, hasKey, getKey } from './keyStore'
 import { transcribe, makeError, type TranscribeOutcome } from './transcribe'
 import { startHotkey, stopHotkey, promptAccessibility, isHotkeyInstalled, HOTKEY_KEYCODES } from './hotkey'
 import { pasteText } from './paste'
+import { getConfig, setConfig, type MurmurConfig } from './config'
 import {
   appendTranscript,
   markPasted,
@@ -114,8 +115,10 @@ function showSettings(tab = 'main'): void {
     return
   }
   settingsWindow = new BrowserWindow({
-    width: 560,
-    height: 460,
+    width: 600,
+    height: 560,
+    minWidth: 540,
+    minHeight: 460,
     resizable: true,
     title: 'Murmur',
     show: false,
@@ -142,8 +145,8 @@ function showSettings(tab = 'main'): void {
 // A transparent, frameless, click-through, always-on-top, all-spaces window
 // that floats a small pill near the bottom-center: live level bars while
 // recording, a spinner while transcribing. It never steals focus.
-const HUD_W = 220
-const HUD_H = 72
+const HUD_W = 280
+const HUD_H = 88
 
 function createHud(): void {
   hudWin = new BrowserWindow({
@@ -240,6 +243,19 @@ ipcMain.handle('history:usage', () =>
   usageByModel().map((r) => ({ ...r, cost: estimatedCost(r) })),
 )
 
+// Persisted settings (model, mic, hotkey, paste, auto-update, retention).
+ipcMain.handle('config:get', () => getConfig())
+ipcMain.handle('config:set', (_e, patch: Partial<MurmurConfig>) => {
+  const prevHotkey = getConfig().hotkey
+  const next = setConfig(patch)
+  // Re-register the global hotkey live if it changed.
+  if (patch.hotkey && patch.hotkey !== prevHotkey) {
+    stopHotkey()
+    installHotkey()
+  }
+  return next
+})
+
 ipcMain.handle(
   'transcribe',
   async (
@@ -278,18 +294,24 @@ app.whenReady().then(() => {
 
   // Prune old history on launch (parity with the Swift app).
   try {
-    const deleted = pruneHistory(DEFAULTS.retentionDays)
-    if (deleted > 0) console.log(`[history] pruned ${deleted} transcripts older than ${DEFAULTS.retentionDays}d`)
+    const days = getConfig().retentionDays
+    const deleted = pruneHistory(days)
+    if (deleted > 0) console.log(`[history] pruned ${deleted} transcripts older than ${days}d`)
   } catch (e) {
     console.error('[history] prune failed:', e)
   }
 
-  // Phase D: global modifier hotkey (Right Option). For now the toggle just
-  // flips the tray glyph idle↔recording as a visible test; the full
-  // record→transcribe→paste pipeline is wired once the state machine + capture
-  // host exist. Installs once Accessibility is granted (polled, no prompt).
+  // Global modifier hotkey (default Right Option), from persisted config.
+  // Installs once Accessibility is granted (polled, no prompt).
+  installHotkey()
+})
+
+// Install/reinstall the configured hotkey. Called at launch and whenever the
+// user changes the hotkey in Settings.
+function installHotkey(): void {
+  const keycode = HOTKEY_KEYCODES[getConfig().hotkey as keyof typeof HOTKEY_KEYCODES] ?? HOTKEY_KEYCODES.alt_r
   startHotkey(
-    HOTKEY_KEYCODES.alt_r,
+    keycode,
     () => {
       void onHotkeyToggle().catch((e) => {
         console.error('[pipeline] toggle failed:', e)
@@ -301,11 +323,9 @@ app.whenReady().then(() => {
       refreshTray()
     },
   )
-})
+}
 
 // --- Hidden capture host + the record→transcribe→paste pipeline -------------
-// Defaults until Settings persistence lands (Phase H).
-const DEFAULTS = { model: 'gpt-4o-transcribe', deviceId: '', pasteAtCursor: true, retentionDays: 30 }
 
 interface RecResult { ok: boolean; wav?: ArrayBuffer; durationS?: number; peakLevel?: number; error?: string }
 interface StartAck { ok: boolean; error?: string }
@@ -413,7 +433,7 @@ async function onHotkeyToggle(): Promise<void> {
       // M1/M2: await the start ack — covers a lost/late rec:start AND a
       // start failure (mic busy/denied), instead of wedging at "recording".
       const ack = await sendAndAwait<StartAck>('rec:started', 5000, { ok: false, error: 'timeout' }, () =>
-        hostWin!.webContents.send('rec:start', DEFAULTS.deviceId),
+        hostWin!.webContents.send('rec:start', getConfig().deviceId),
       )
       if (!ack.ok) flashError(ack.error ? `Couldn't start recording: ${ack.error}` : "Couldn't start recording.")
       return
@@ -440,17 +460,18 @@ async function onHotkeyToggle(): Promise<void> {
       flashError('No API key — open Settings.')
       return
     }
-    const outcome = await transcribe({ apiKey, wav: rec.wav, model: DEFAULTS.model })
+    const cfg = getConfig()
+    const outcome = await transcribe({ apiKey, wav: rec.wav, model: cfg.model })
     if (!outcome.ok) {
       // Record the failure (recoverable from History) then surface it.
-      appendTranscript('', DEFAULTS.model, rec.durationS ?? 0, outcome.error.description)
+      appendTranscript('', cfg.model, rec.durationS ?? 0, outcome.error.description)
       flashError(outcome.error.userMessage)
       return
     }
     // Persist BEFORE pasting (Swift AppModel order) so the text is recoverable
     // even if paste fails.
-    const rowId = appendTranscript(outcome.text, DEFAULTS.model, rec.durationS ?? 0)
-    if (outcome.text && DEFAULTS.pasteAtCursor) {
+    const rowId = appendTranscript(outcome.text, cfg.model, rec.durationS ?? 0)
+    if (outcome.text && cfg.pasteAtCursor) {
       if (pasteText(outcome.text)) {
         markPasted(rowId)
         setState('idle')

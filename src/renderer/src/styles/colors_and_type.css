@@ -1,0 +1,254 @@
+/* ============================================================================
+   MURMUR — Design Tokens
+   "The dot in ink." Tap-to-talk dictation for macOS.
+   Light + dark are both first-class. All tokens are CSS custom properties so
+   they map 1:1 to the React + TypeScript / Electron renderer.
+
+   Accent: AZURE / BLUE (#2E6FE0) on a blue-tinted INK neutral.
+   Deliberately distinct from Wispr Flow (no cream backgrounds, no lavender/violet).
+   The blue dot doubles as the recording indicator — the brand mark lights up.
+   ============================================================================ */
+
+/* Self-hosted brand fonts (variable TTF). Paths resolve relative to this file (project root). */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  src: url('fonts/HankenGrotesk-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('fonts/JetBrainsMono-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hanken Grotesk';
+  src: url('fonts/HankenGrotesk-Italic-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('fonts/JetBrainsMono-Italic-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  /* ---- RAW PALETTE -------------------------------------------------------- */
+
+  /* Ink — blue-tinted near-black neutral ramp */
+  --ink-25:  #F8F9FB;
+  --ink-50:  #F2F4F7;
+  --ink-100: #E7EAEF;
+  --ink-150: #D7DBE2;
+  --ink-200: #C2C8D2;
+  --ink-300: #9AA2B1;
+  --ink-400: #767E8F;
+  --ink-500: #545C6E;
+  --ink-600: #3A4254;
+  --ink-700: #283041;
+  --ink-800: #1C2438;
+  --ink-850: #161C2E;
+  --ink-900: #111626;
+  --ink-950: #0B0F19;
+  --white:   #FFFFFF;
+
+  /* Azure — accent ramp (tint → shade). Murmur's brand blue. */
+  --blue-50:  #EDF3FE;
+  --blue-100: #D6E3FD;
+  --blue-200: #AEC8FA;
+  --blue-300: #82A8F4;
+  --blue-400: #5388EC;
+  --blue-500: #2E6FE0;   /* BASE ACCENT — "the dot in ink" */
+  --blue-600: #2059C0;
+  --blue-700: #1A4799;
+  --blue-800: #163A78;
+  --blue-900: #112B58;
+
+  /* Functional hues */
+  --red-400:   #F0766B;
+  --red-500:   #D9544F;
+  --red-600:   #C8453B;
+  --red-700:   #9E342C;
+  --green-400: #4FBF8B;
+  --green-500: #2E9E6B;
+  --green-600: #1F7E53;
+
+  /* ---- TYPOGRAPHY --------------------------------------------------------- */
+  --font-ui:   'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* role / size / line-height / weight / letter-spacing */
+  --text-display:      700 32px/38px var(--font-ui);
+  --text-display-ls:   -0.02em;
+  --text-title:        600 22px/28px var(--font-ui);
+  --text-title-ls:     -0.014em;
+  --text-heading:      600 17px/24px var(--font-ui);
+  --text-heading-ls:   -0.008em;
+  --text-body:         400 14px/20px var(--font-ui);
+  --text-body-ls:      0em;
+  --text-body-strong:  600 14px/20px var(--font-ui);
+  --text-caption:      500 12px/16px var(--font-ui);
+  --text-caption-ls:   0.002em;
+  --text-mono:         500 13px/18px var(--font-mono);
+  --text-mono-ls:      -0.01em;
+
+  /* ---- SPACING (2 / 4 / 8 base) ------------------------------------------- */
+  --space-0_5: 2px;
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-7:   28px;
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-16:  64px;
+
+  /* ---- RADIUS ------------------------------------------------------------- */
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-2xl:  20px;
+  --radius-pill: 999px;
+
+  /* ---- BORDER WIDTH ------------------------------------------------------- */
+  --border-hairline: 1px;
+  --border-medium:   1.5px;
+  --border-thick:    2px;
+
+  /* ---- MOTION ------------------------------------------------------------- */
+  --ease-out:    cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in:     cubic-bezier(0.4, 0, 1, 1);
+  --dur-instant: 80ms;
+  --dur-fast:    120ms;
+  --dur-base:    200ms;
+  --dur-slow:    320ms;
+  --dur-level:   90ms;   /* audio level-bar response */
+}
+
+/* ============================================================================
+   SEMANTIC TOKENS — LIGHT (default)
+   ============================================================================ */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  --bg:              var(--ink-25);
+  --surface:         var(--white);
+  --surface-raised:  var(--white);
+  --surface-sunken:  var(--ink-50);
+  --surface-hover:   var(--ink-50);
+
+  --border:          var(--ink-100);
+  --border-strong:   var(--ink-150);
+  --separator:       var(--ink-100);
+
+  --text-primary:    var(--ink-900);
+  --text-secondary:  var(--ink-500);
+  --text-tertiary:   var(--ink-400);
+  --text-placeholder:var(--ink-300);
+
+  --accent:          var(--blue-500);
+  --accent-hover:    var(--blue-600);
+  --accent-pressed:  var(--blue-700);
+  --accent-text:     var(--blue-600);   /* blue for TEXT/icons (AA on light) */
+  --accent-subtle:   var(--blue-50);    /* tinted fill */
+  --on-accent:       var(--white);      /* white text on blue fill */
+
+  --danger:          var(--red-600);
+  --danger-text:     var(--red-600);
+  --danger-bg:       #FBEAE8;
+  --success:         var(--green-500);
+  --success-bg:      #E6F4EC;
+
+  --recording:       var(--blue-500);   /* the dot glows brand-blue when live */
+  --recording-glow:  rgba(46, 111, 224, 0.45);
+
+  --focus-ring:      var(--blue-500);
+  --focus-halo:      rgba(46, 111, 224, 0.32);
+
+  --overlay:         rgba(11, 15, 25, 0.45);
+  --hud-bg:          rgba(17, 22, 38, 0.92);  /* HUD is dark in both themes */
+  --hud-fg:          #F2F4F7;
+
+  --shadow-1: 0 1px 2px rgba(11,15,25,0.06), 0 1px 3px rgba(11,15,25,0.05);
+  --shadow-2: 0 4px 12px rgba(11,15,25,0.10), 0 1px 3px rgba(11,15,25,0.06);
+  --shadow-3: 0 16px 40px rgba(11,15,25,0.16), 0 4px 10px rgba(11,15,25,0.08);
+  --shadow-hud: 0 10px 30px rgba(0,0,0,0.35);
+}
+
+/* ============================================================================
+   SEMANTIC TOKENS — DARK
+   ============================================================================ */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg:              var(--ink-950);
+  --surface:         var(--ink-900);
+  --surface-raised:  var(--ink-850);
+  --surface-sunken:  #090C14;
+  --surface-hover:   var(--ink-800);
+
+  --border:          var(--ink-800);
+  --border-strong:   var(--ink-700);
+  --separator:       #222A3C;
+
+  --text-primary:    var(--ink-50);
+  --text-secondary:  var(--ink-300);
+  --text-tertiary:   var(--ink-400);
+  --text-placeholder:var(--ink-500);
+
+  --accent:          var(--blue-500);
+  --accent-hover:    var(--blue-400);
+  --accent-pressed:  var(--blue-600);
+  --accent-text:     var(--blue-300);    /* lighter blue for text on ink */
+  --accent-subtle:   rgba(69, 130, 238, 0.16);
+  --on-accent:       var(--white);
+
+  --danger:          var(--red-400);
+  --danger-text:     var(--red-400);
+  --danger-bg:       rgba(200, 69, 59, 0.18);
+  --success:         var(--green-400);
+  --success-bg:      rgba(46, 158, 107, 0.18);
+
+  --recording:       var(--blue-400);
+  --recording-glow:  rgba(69, 130, 238, 0.55);
+
+  --focus-ring:      var(--blue-400);
+  --focus-halo:      rgba(69, 130, 238, 0.40);
+
+  --overlay:         rgba(5, 7, 12, 0.62);
+  --hud-bg:          rgba(17, 22, 38, 0.92);
+  --hud-fg:          #F2F4F7;
+
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.40), 0 1px 3px rgba(0,0,0,0.30);
+  --shadow-2: 0 4px 14px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.35);
+  --shadow-3: 0 18px 44px rgba(0,0,0,0.55), 0 6px 14px rgba(0,0,0,0.40);
+  --shadow-hud: 0 12px 34px rgba(0,0,0,0.55);
+}
+
+/* ============================================================================
+   SEMANTIC TYPE HELPERS — apply a role in one class
+   ============================================================================ */
+.t-display     { font: var(--text-display);     letter-spacing: var(--text-display-ls);  color: var(--text-primary); }
+.t-title       { font: var(--text-title);       letter-spacing: var(--text-title-ls);    color: var(--text-primary); }
+.t-heading     { font: var(--text-heading);     letter-spacing: var(--text-heading-ls);  color: var(--text-primary); }
+.t-body        { font: var(--text-body);        letter-spacing: var(--text-body-ls);     color: var(--text-primary); }
+.t-body-strong { font: var(--text-body-strong); letter-spacing: var(--text-body-ls);     color: var(--text-primary); }
+.t-caption     { font: var(--text-caption);     letter-spacing: var(--text-caption-ls);  color: var(--text-secondary); }
+.t-mono        { font: var(--text-mono);        letter-spacing: var(--text-mono-ls);     font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}

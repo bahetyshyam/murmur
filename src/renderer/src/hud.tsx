@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import './theme'
+import './hud.css'
 
 // Bridge exposed by src/preload/hud.ts (declared inline — renderer and preload
 // are separate TS projects, so we don't import across the boundary).
@@ -27,13 +29,23 @@ function Hud(): React.JSX.Element | null {
     window.hud.onLevel((l) => setLevel(l))
   }, [])
 
-  // Main hides the window when idle/error, but render nothing too (belt + braces).
   if (mode !== 'recording' && mode !== 'transcribing') return null
 
   return (
-    <div style={WRAP}>
-      <style>{KEYFRAMES}</style>
-      <div style={PILL}>{mode === 'recording' ? <Bars level={level} /> : <Dots />}</div>
+    <div className="hud-wrap">
+      <div className="hud">
+        {mode === 'recording' ? (
+          <>
+            <span className="rec-dot" />
+            <Bars level={level} />
+          </>
+        ) : (
+          <>
+            <span className="spinner" />
+            <span>Transcribing…</span>
+          </>
+        )}
+      </div>
     </div>
   )
 }
@@ -41,64 +53,12 @@ function Hud(): React.JSX.Element | null {
 function Bars({ level }: { level: number }): React.JSX.Element {
   const v = Math.max(0, Math.min(1, level * 1.6)) // light visual boost
   return (
-    <div style={ROW}>
+    <span className="bars">
       {BAR_WEIGHTS.map((w, i) => (
-        <span key={i} style={{ ...BAR, height: `${5 + v * 26 * w}px` }} />
+        <span key={i} style={{ height: `${6 + v * 22 * w}px` }} />
       ))}
-    </div>
+    </span>
   )
 }
-
-function Dots(): React.JSX.Element {
-  return (
-    <div style={ROW}>
-      {[0, 1, 2].map((i) => (
-        <span key={i} style={{ ...DOT, animationDelay: `${i * 0.18}s` }} />
-      ))}
-    </div>
-  )
-}
-
-const WRAP: React.CSSProperties = {
-  height: '100%',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-}
-const PILL: React.CSSProperties = {
-  minWidth: 96,
-  height: 44,
-  padding: '0 18px',
-  borderRadius: 22,
-  background: 'rgba(28, 28, 30, 0.92)',
-  boxShadow: '0 6px 20px rgba(0, 0, 0, 0.35)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  WebkitBackdropFilter: 'blur(12px)',
-}
-const ROW: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 4,
-  height: 32,
-}
-const BAR: React.CSSProperties = {
-  width: 4,
-  borderRadius: 2,
-  background: '#f2f2f7',
-  transition: 'height 90ms ease-out',
-}
-const DOT: React.CSSProperties = {
-  width: 8,
-  height: 8,
-  borderRadius: '50%',
-  background: '#f2f2f7',
-  animation: 'murmurPulse 1.1s ease-in-out infinite',
-}
-const KEYFRAMES = `@keyframes murmurPulse {
-  0%, 100% { opacity: 0.3; transform: scale(0.75); }
-  50% { opacity: 1; transform: scale(1); }
-}`
 
 createRoot(document.getElementById('root')!).render(<Hud />)
