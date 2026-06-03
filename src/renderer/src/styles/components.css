@@ -1,0 +1,208 @@
+/* ============================================================================
+   MURMUR — Component primitives. Plain CSS on top of colors_and_type.css.
+   Reused by the Design System cards and the UI kits. Maps 1:1 to React parts.
+   ============================================================================ */
+@import url('colors_and_type.css');
+
+/* ---- Layout utilities (flex helpers; `gap` only works on flex/grid) ----- */
+.row { display: flex; align-items: center; gap: 12px; }
+.col { display: flex; flex-direction: column; }
+
+/* ---- Button ------------------------------------------------------------- */
+.btn {
+  font: var(--text-body-strong); letter-spacing: 0;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  height: 32px; padding: 0 14px; border-radius: var(--radius-md);
+  border: 1px solid transparent; cursor: pointer; user-select: none;
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-instant) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
+  white-space: nowrap;
+}
+.btn:active { transform: scale(0.975); }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-halo); }
+.btn-lg { height: 40px; padding: 0 20px; font-size: 15px; border-radius: var(--radius-lg); }
+.btn-sm { height: 26px; padding: 0 10px; font-size: 13px; }
+
+.btn-primary { background: var(--accent); color: var(--on-accent); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:active { background: var(--accent-pressed); }
+
+.btn-secondary { background: var(--surface); color: var(--text-primary); border-color: var(--border-strong); }
+.btn-secondary:hover { background: var(--surface-hover); }
+
+.btn-ghost { background: transparent; color: var(--text-secondary); }
+.btn-ghost:hover { background: var(--surface-hover); color: var(--text-primary); }
+
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { filter: brightness(1.06); }
+
+.btn:disabled, .btn[aria-disabled='true'] { opacity: 0.4; cursor: default; pointer-events: none; }
+
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: var(--radius-md);
+  border: none; background: transparent; color: var(--text-secondary); cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.icon-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+.icon-btn:active { transform: scale(0.92); }
+.icon-btn svg { width: 17px; height: 17px; }
+
+/* ---- Inputs ------------------------------------------------------------- */
+.field {
+  font: var(--text-body); color: var(--text-primary);
+  height: 34px; padding: 0 12px; width: 100%;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md); outline: none;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.field::placeholder { color: var(--text-placeholder); }
+.field:hover { border-color: var(--ink-300); }
+.field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-halo); }
+.field:disabled { opacity: 0.5; }
+.field.is-error { border-color: var(--danger); }
+.field-mono { font: var(--text-mono); }
+
+.select-wrap { position: relative; display: inline-flex; width: 100%; }
+.select-wrap select.field { appearance: none; padding-right: 32px; cursor: pointer; }
+.select-wrap::after {
+  content: ''; position: absolute; right: 12px; top: 50%; width: 9px; height: 9px;
+  transform: translateY(-65%) rotate(45deg); border-right: 1.5px solid var(--text-tertiary);
+  border-bottom: 1.5px solid var(--text-tertiary); pointer-events: none;
+}
+
+/* ---- Toggle / Switch ---------------------------------------------------- */
+.switch { position: relative; width: 40px; height: 24px; flex: none; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.switch .track {
+  position: absolute; inset: 0; border-radius: var(--radius-pill);
+  background: var(--ink-200); transition: background var(--dur-base) var(--ease-out);
+}
+[data-theme='dark'] .switch .track { background: var(--ink-700); }
+.switch .thumb {
+  position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; box-shadow: var(--shadow-1);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.switch input:checked ~ .track { background: var(--accent); }
+.switch input:checked ~ .thumb { transform: translateX(16px); }
+.switch input:focus-visible ~ .track { box-shadow: 0 0 0 3px var(--focus-halo); }
+
+/* ---- Checkbox / Radio --------------------------------------------------- */
+.check, .radio {
+  width: 18px; height: 18px; flex: none; border: 1.5px solid var(--border-strong);
+  background: var(--surface); display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all var(--dur-fast) var(--ease-out); color: var(--on-accent);
+}
+.check { border-radius: 5px; }
+.radio { border-radius: 50%; }
+.check.on, .radio.on { background: var(--accent); border-color: var(--accent); }
+.radio.on::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--on-accent); }
+.check svg { width: 12px; height: 12px; }
+
+/* ---- Stepper ------------------------------------------------------------ */
+.stepper { display: inline-flex; align-items: stretch; border: 1px solid var(--border-strong); border-radius: var(--radius-md); overflow: hidden; }
+.stepper button { width: 30px; border: none; background: var(--surface); color: var(--text-secondary); font-size: 16px; cursor: pointer; }
+.stepper button:hover { background: var(--surface-hover); color: var(--text-primary); }
+.stepper .val { min-width: 44px; display: inline-flex; align-items: center; justify-content: center; font: var(--text-mono); border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+
+/* ---- Card / Section ----------------------------------------------------- */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-1);
+}
+.section { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.section-title { font: var(--text-body-strong); }
+.section-help { font: var(--text-caption); color: var(--text-secondary); }
+
+/* ---- ListRow (history) -------------------------------------------------- */
+.list-row {
+  display: flex; flex-direction: column; gap: 6px; padding: 12px 14px;
+  border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--border);
+}
+.list-row + .list-row { margin-top: 8px; }
+.list-meta { display: flex; align-items: center; gap: 8px; }
+.list-time { font: var(--text-caption); color: var(--text-tertiary); }
+.list-body { font: var(--text-body); color: var(--text-primary); }
+.list-body.is-error { color: var(--danger); }
+
+/* ---- Badge / Tag -------------------------------------------------------- */
+.badge {
+  font: var(--text-mono); font-size: 11px; line-height: 1;
+  padding: 4px 8px; border-radius: var(--radius-sm);
+  background: var(--surface-sunken); color: var(--text-secondary); border: 1px solid var(--border);
+}
+.badge-accent { background: var(--accent-subtle); color: var(--accent-text); border-color: transparent; }
+.badge-success { background: var(--success-bg); color: var(--success); border-color: transparent; }
+.tag-pasted { display: inline-flex; align-items: center; gap: 4px; font: var(--text-caption); color: var(--success); white-space: nowrap; }
+
+/* ---- Banner / Toast ----------------------------------------------------- */
+.banner {
+  display: flex; align-items: flex-start; gap: 10px; padding: 11px 13px;
+  border-radius: var(--radius-md); font: var(--text-body); border: 1px solid transparent;
+}
+.banner-icon { flex: none; width: 18px; height: 18px; margin-top: 1px; }
+.banner-error { background: var(--danger-bg); color: var(--danger-text); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+.banner-success { background: var(--success-bg); color: var(--success); border-color: color-mix(in srgb, var(--success) 28%, transparent); }
+.banner-info { background: var(--accent-subtle); color: var(--accent-text); }
+.toast {
+  display: inline-flex; align-items: center; gap: 9px; padding: 10px 14px;
+  background: var(--ink-900); color: var(--ink-50); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3); font: var(--text-body);
+}
+
+/* ---- Tooltip ------------------------------------------------------------ */
+.tooltip {
+  display: inline-flex; padding: 5px 9px; background: var(--ink-900); color: var(--ink-50);
+  border-radius: var(--radius-sm); font: var(--text-caption); box-shadow: var(--shadow-2);
+}
+
+/* ---- Tabs --------------------------------------------------------------- */
+.tabs { display: inline-flex; gap: 2px; padding: 3px; background: var(--surface-sunken); border-radius: var(--radius-md); }
+.tabs button {
+  font: var(--text-body-strong); border: none; background: transparent; color: var(--text-secondary);
+  padding: 5px 14px; border-radius: 6px; cursor: pointer; transition: all var(--dur-fast) var(--ease-out);
+}
+.tabs button:hover { color: var(--text-primary); }
+.tabs button.on { background: var(--surface); color: var(--text-primary); box-shadow: var(--shadow-1); }
+
+/* ---- KeyGlyph ----------------------------------------------------------- */
+.key {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 30px; height: 30px; padding: 0 8px; gap: 4px;
+  font: var(--text-mono); font-size: 15px; color: var(--text-primary);
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); box-shadow: 0 1.5px 0 var(--border-strong);
+}
+.key-lg { min-width: 44px; height: 44px; font-size: 20px; border-radius: var(--radius-md); box-shadow: 0 2px 0 var(--border-strong); }
+
+/* ---- LevelBars (audio meter) ------------------------------------------- */
+.levelbars { display: inline-flex; align-items: center; gap: 4px; height: 32px; }
+.levelbars span { width: 4px; border-radius: 2px; background: var(--accent); transition: height var(--dur-level) var(--ease-out); }
+
+/* ---- Spinner / Dots ----------------------------------------------------- */
+.dots { display: inline-flex; gap: 6px; }
+.dots span { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: murmurPulse 1.1s var(--ease-in-out) infinite; }
+.dots span:nth-child(2) { animation-delay: 0.16s; }
+.dots span:nth-child(3) { animation-delay: 0.32s; }
+@keyframes murmurPulse { 0%,100% { opacity: 0.28; transform: scale(0.7); } 50% { opacity: 1; transform: scale(1); } }
+.spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent); animation: murmurSpin 0.8s linear infinite; }
+@keyframes murmurSpin { to { transform: rotate(360deg); } }
+
+/* ---- ProgressRail (onboarding) ----------------------------------------- */
+.rail { display: flex; align-items: center; gap: 6px; }
+.rail .seg { height: 4px; flex: 1; border-radius: 2px; background: var(--border); overflow: hidden; }
+.rail .seg.done { background: var(--accent); }
+.rail .seg.active { background: var(--accent); opacity: 0.5; }
+.rail-dots { display: flex; gap: 7px; }
+.rail-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); transition: all var(--dur-base) var(--ease-out); }
+.rail-dots i.done { background: var(--accent); }
+.rail-dots i.active { background: var(--accent); transform: scale(1.4); }
+
+/* ---- EmptyState --------------------------------------------------------- */
+.empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 36px 20px; text-align: center; color: var(--text-tertiary); }
+.empty .empty-art { width: 72px; height: 72px; opacity: 0.9; }
+.empty .empty-title { font: var(--text-body-strong); color: var(--text-secondary); }
+.empty .empty-sub { font: var(--text-caption); color: var(--text-tertiary); max-width: 280px; }

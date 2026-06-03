@@ -1,0 +1,7 @@
+{
+  "name": "murmur-hotkey",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Native macOS CGEventTap modifier-hotkey addon for Murmur",
+  "gypfile": true
+}

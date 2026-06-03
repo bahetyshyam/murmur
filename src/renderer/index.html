@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- A proper environment-aware CSP (strict in prod, dev-server-friendly in
+         dev) is applied via main-process response headers in Phase J. A static
+         strict meta-CSP here would block the AudioWorklet fetch + dev HMR. -->
+    <title>Murmur Settings</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

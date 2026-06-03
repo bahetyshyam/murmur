@@ -1,0 +1,8 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="30" y="84" width="42" height="42" rx="9" stroke="#5B6473" stroke-width="3.5"></rect>
+<text x="51" y="113" font-family="JetBrains Mono, monospace" font-size="22" fill="#2E6FE0" text-anchor="middle">⌥</text>
+<path d="M82 105 H114" stroke="#8A92A1" stroke-width="3.5" stroke-linecap="round"></path><path d="M106 97 L116 105 L106 113" stroke="#8A92A1" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+<rect x="126" y="86" width="46" height="38" rx="8" stroke="#5B6473" stroke-width="3.5"></rect><rect x="136" y="96" width="2.5" height="18" rx="1.25" fill="#2E6FE0"></rect>
+<rect x="48" y="150" width="104" height="34" rx="10" stroke="#8A92A1" stroke-width="3" opacity="0.5"></rect>
+<rect x="118" y="158" width="26" height="18" rx="9" fill="#2E6FE0"></rect><circle cx="137" cy="167" r="7" fill="#fff"></circle>
+</svg>

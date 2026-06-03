@@ -1,0 +1,48 @@
+@import url('./styles/components.css');
+
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; }
+body {
+  font-family: var(--font-ui);
+  background: var(--surface);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* SplitScaffold: illustration panel + content. */
+.ob-grid { height: 100%; display: grid; grid-template-columns: 288px 1fr; min-height: 0; }
+.ob-art {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background:
+    radial-gradient(230px 230px at 50% 44%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%),
+    var(--surface-sunken);
+  border-right: 1px solid var(--separator);
+}
+.ob-wordmark { font: var(--text-title); font-weight: 800; letter-spacing: -0.02em; color: var(--text-primary); }
+
+.ob-content { display: flex; flex-direction: column; padding: 34px 38px 24px; min-height: 0; }
+.ob-head { display: flex; flex-direction: column; gap: 7px; flex: none; }
+.ob-kicker { font: var(--text-caption); letter-spacing: .06em; text-transform: uppercase; color: var(--accent-text); }
+.ob-body { flex: 1; min-height: 0; padding-top: 18px; }
+.ob-footer { flex: none; display: flex; flex-direction: column; gap: 20px; padding-top: 20px; }
+.ob-nav { display: flex; align-items: center; justify-content: space-between; }
+.ob-fade { animation: obIn var(--dur-base) var(--ease-out); }
+@keyframes obIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+
+.muted { color: var(--text-secondary); }
+.dim { color: var(--text-tertiary); }
+
+.trybox {
+  min-height: 50px; display: flex; align-items: center; padding: 11px 14px;
+  background: var(--surface-sunken); border: 1px solid var(--border); border-radius: var(--radius-md);
+  font: var(--text-body); width: 100%;
+}
+.try-field {
+  width: 100%; min-height: 50px; padding: 11px 14px; resize: none;
+  background: var(--surface-sunken); border: 1px solid var(--border); border-radius: var(--radius-md);
+  font: var(--text-body); color: var(--text-primary); outline: none;
+}
+.try-field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-halo); }
+.try-bars { flex: none; }
+.try-bars span { animation: tryLv 0.85s var(--ease-in-out) infinite; }
+@keyframes tryLv { 0%, 100% { height: 7px; } 50% { height: 24px; } }

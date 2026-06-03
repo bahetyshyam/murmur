@@ -1,0 +1,6 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="100" cy="100" r="80" stroke="#8A92A1" stroke-width="2" opacity="0.16"></circle>
+<circle cx="100" cy="100" r="58" stroke="#2E6FE0" stroke-width="2.5" opacity="0.4"></circle>
+<rect x="62" y="62" width="76" height="76" rx="16" stroke="#5B6473" stroke-width="4" fill="none"></rect>
+<rect x="62" y="62" width="76" height="76" rx="16" fill="#2E6FE0" opacity="0.08"></rect>
+<text x="100" y="116" font-family="JetBrains Mono, monospace" font-size="44" fill="#2E6FE0" text-anchor="middle">⌥</text></svg>
