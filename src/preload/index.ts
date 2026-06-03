@@ -30,6 +30,11 @@ export interface MurmurConfig {
   pasteAtCursor: boolean
   autoUpdate: boolean
   retentionDays: number
+  onboardingSeen: boolean
+}
+export interface PermStatus {
+  mic: boolean
+  ax: boolean
 }
 
 // Typed, parameterized bridge — never raw ipcRenderer. The OpenAI key lives
@@ -59,6 +64,23 @@ const api = {
     get: (): Promise<MurmurConfig> => ipcRenderer.invoke('config:get'),
     set: (patch: Partial<MurmurConfig>): Promise<MurmurConfig> => ipcRenderer.invoke('config:set', patch),
   },
+
+  // macOS permissions (onboarding + Permissions Help). Prompts fire only from
+  // these explicit calls (i.e. button clicks), never automatically.
+  perms: {
+    status: (): Promise<PermStatus> => ipcRenderer.invoke('perms:status'),
+    requestMic: (): Promise<boolean> => ipcRenderer.invoke('perms:request-mic'),
+    requestAx: (): Promise<void> => ipcRenderer.invoke('perms:request-ax'),
+    openSettings: (which: 'mic' | 'ax'): Promise<void> => ipcRenderer.invoke('perms:open-settings', which),
+  },
+
+  // Onboarding wizard lifecycle.
+  onboarding: {
+    finish: (): Promise<void> => ipcRenderer.invoke('onboarding:finish'),
+  },
+
+  // Close the current window (Permissions Help "Done").
+  closeWindow: (): void => ipcRenderer.send('window:close'),
 
   // Main asks the Settings window to switch tabs (e.g. tray → History…).
   onSetTab: (cb: (tab: string) => void): void => {

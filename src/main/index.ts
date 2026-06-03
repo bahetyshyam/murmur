@@ -1,4 +1,4 @@
-import { app, Tray, Menu, BrowserWindow, nativeImage, shell, session, ipcMain, screen } from 'electron'
+import { app, Tray, Menu, BrowserWindow, nativeImage, shell, session, ipcMain, screen, systemPreferences } from 'electron'
 import { join } from 'path'
 import { writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
@@ -33,6 +33,8 @@ type AppState = 'idle' | 'recording' | 'transcribing' | 'error'
 let tray: Tray | null = null
 let settingsWindow: BrowserWindow | null = null
 let hudWin: BrowserWindow | null = null
+let onboardingWin: BrowserWindow | null = null
+let permissionsWin: BrowserWindow | null = null
 let state: AppState = 'idle'
 let lastError = ''
 
@@ -80,8 +82,9 @@ function buildMenu(): Menu {
         ]),
     { type: 'separator' },
     { label: 'History…', click: () => showSettings('history') },
-    { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => showSettings('main') },
-    { label: 'Permissions Help…', click: () => { /* Phase H */ } },
+    { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => showSettings('general') },
+    { label: 'Permissions Help…', click: () => showPermissions() },
+    { label: 'Set up Murmur…', click: () => showOnboarding() },
     { label: 'Check for Updates…', click: () => { /* Phase I */ } },
     { type: 'separator' },
     { label: 'Quit Murmur', accelerator: 'CmdOrCtrl+Q', click: () => app.quit() },
@@ -204,6 +207,45 @@ function syncHud(): void {
   }
 }
 
+// --- Onboarding wizard + Permissions Help (Phase H) ------------------------
+function showOnboarding(): void {
+  if (onboardingWin && !onboardingWin.isDestroyed()) {
+    onboardingWin.show()
+    onboardingWin.focus()
+    return
+  }
+  onboardingWin = new BrowserWindow({
+    width: 720,
+    height: 520,
+    resizable: false,
+    title: 'Welcome to Murmur',
+    show: false,
+    webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, sandbox: true },
+  })
+  onboardingWin.on('ready-to-show', () => onboardingWin?.show())
+  if (RENDERER_URL) onboardingWin.loadURL(`${RENDERER_URL}/onboarding.html`)
+  else onboardingWin.loadFile(join(__dirname, '../renderer/onboarding.html'))
+}
+
+function showPermissions(): void {
+  if (permissionsWin && !permissionsWin.isDestroyed()) {
+    permissionsWin.show()
+    permissionsWin.focus()
+    return
+  }
+  permissionsWin = new BrowserWindow({
+    width: 640,
+    height: 460,
+    resizable: false,
+    title: 'Permissions Help',
+    show: false,
+    webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, sandbox: true },
+  })
+  permissionsWin.on('ready-to-show', () => permissionsWin?.show())
+  if (RENDERER_URL) permissionsWin.loadURL(`${RENDERER_URL}/permissions.html`)
+  else permissionsWin.loadFile(join(__dirname, '../renderer/permissions.html'))
+}
+
 // Allow microphone capture (getUserMedia) from our renderer. The macOS TCC
 // prompt still fires on first use; the bundle's NSMicrophoneUsageDescription
 // (set in electron-builder.yml) is what lets that prompt appear.
@@ -256,6 +298,32 @@ ipcMain.handle('config:set', (_e, patch: Partial<MurmurConfig>) => {
   return next
 })
 
+// macOS permissions for onboarding + Permissions Help. Prompts fire only from
+// these explicit (button-driven) calls — never automatically.
+ipcMain.handle('perms:status', () => ({
+  mic: systemPreferences.getMediaAccessStatus('microphone') === 'granted',
+  ax: isHotkeyInstalled(),
+}))
+ipcMain.handle('perms:request-mic', () => systemPreferences.askForMediaAccess('microphone'))
+ipcMain.handle('perms:request-ax', () => {
+  promptAccessibility()
+})
+ipcMain.handle('perms:open-settings', (_e, which: 'mic' | 'ax') =>
+  shell.openExternal(
+    which === 'mic'
+      ? 'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone'
+      : 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility',
+  ),
+)
+
+ipcMain.handle('onboarding:finish', () => {
+  setConfig({ onboardingSeen: true })
+  onboardingWin?.close()
+  showSettings('general')
+})
+
+ipcMain.on('window:close', (e) => BrowserWindow.fromWebContents(e.sender)?.close())
+
 ipcMain.handle(
   'transcribe',
   async (
@@ -304,6 +372,9 @@ app.whenReady().then(() => {
   // Global modifier hotkey (default Right Option), from persisted config.
   // Installs once Accessibility is granted (polled, no prompt).
   installHotkey()
+
+  // First run: show the onboarding wizard (the app is already a regular/Dock app).
+  if (!getConfig().onboardingSeen) showOnboarding()
 })
 
 // Install/reinstall the configured hotkey. Called at launch and whenever the

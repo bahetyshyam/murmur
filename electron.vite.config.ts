@@ -40,6 +40,8 @@ export default defineConfig({
           settings: resolve(__dirname, 'src/renderer/index.html'),
           'recorder-host': resolve(__dirname, 'src/renderer/recorder-host.html'),
           hud: resolve(__dirname, 'src/renderer/hud.html'),
+          onboarding: resolve(__dirname, 'src/renderer/onboarding.html'),
+          permissions: resolve(__dirname, 'src/renderer/permissions.html'),
         },
       },
     },

@@ -11,6 +11,7 @@ export interface MurmurConfig {
   pasteAtCursor: boolean
   autoUpdate: boolean
   retentionDays: number
+  onboardingSeen: boolean // shown the 7-step wizard at least once
 }
 
 const DEFAULTS: MurmurConfig = {
@@ -20,6 +21,7 @@ const DEFAULTS: MurmurConfig = {
   pasteAtCursor: true,
   autoUpdate: true,
   retentionDays: 30,
+  onboardingSeen: false,
 }
 
 let cache: MurmurConfig | null = null
