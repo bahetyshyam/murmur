@@ -1,6 +1,6 @@
 {
   "name": "murmur",
-  "version": "2.0.0-dev",
+  "version": "2.0.0",
   "description": "Tap-to-talk dictation for your desktop, powered by OpenAI transcription.",
   "author": "Shyam Bahety",
   "license": "MIT",
